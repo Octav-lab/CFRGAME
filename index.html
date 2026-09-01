@@ -1,0 +1,1263 @@
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>CFR SCADA - Simulator Trafic Extins</title>
+    <style>
+        body {
+            background-color: #050505;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0; padding: 0;
+            display: flex; justify-content: center; align-items: center;
+            height: 100vh; width: 100vw; box-sizing: border-box; user-select: none;
+            overflow: hidden;
+            -webkit-user-select: none;
+        }
+
+        /* --- MAIN MENU (OVERLAY) --- */
+        #main-menu {
+            position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+            background: radial-gradient(circle, #1a2a3a 0%, #050505 100%);
+            z-index: 100000; display: flex; flex-direction: column;
+            justify-content: center; align-items: center; color: #0f0;
+            font-family: 'Courier New', monospace;
+        }
+        .menu-title { font-size: 48px; font-weight: bold; margin-bottom: 10px; text-shadow: 0 0 15px #0f0; text-align: center; }
+        .menu-subtitle { font-size: 18px; color: #0ff; margin-bottom: 50px; }
+        .menu-btn {
+            background: rgba(0, 255, 0, 0.1); border: 2px solid #0f0; color: #0f0;
+            padding: 15px 40px; font-size: 20px; font-weight: bold; font-family: inherit;
+            cursor: pointer; border-radius: 8px; transition: all 0.2s;
+            box-shadow: 0 0 10px rgba(0,255,0,0.2); width: 300px; margin-bottom: 15px;
+        }
+        .menu-btn:hover { background: #0f0; color: #000; box-shadow: 0 0 20px #0f0; transform: scale(1.05); }
+
+        .window {
+            background-color: #111; width: 100%; height: 100%;
+            display: flex; flex-direction: column; position: relative;
+        }
+
+        .sys-info-bar {
+            background: #000; color: #0f0; font-family: 'Courier New', monospace; font-size: 13px;
+            padding: 8px 15px; border-bottom: 2px solid #222;
+            display: flex; flex-wrap: wrap; gap: 15px; justify-content: space-between; align-items: center;
+            box-shadow: inset 0 2px 5px rgba(0,0,0,0.8); z-index: 50; flex-shrink: 0;
+        }
+        
+        .score-box { background: #1a1a1a; padding: 3px 8px; border: 1px solid #0f0; border-radius: 4px; color: #0ff; font-weight: bold; }
+        .control-toggle-btn { background: #222; border: 1px solid #0f0; color: #0f0; padding: 3px 8px; border-radius: 4px; cursor: pointer; font-weight: bold; font-family: 'Courier New', monospace;}
+        .control-toggle-btn.auto { background: #0f0; color: #000; }
+        .speed-select { background: #222; color: #0f0; border: 1px solid #0f0; border-radius: 4px; padding: 2px 5px; font-family: monospace; font-weight:bold; cursor: pointer; outline: none; }
+
+        /* --- MAP WRAPPER --- */
+        #map-wrapper {
+            flex-grow: 1; background-color: #0a0f14;
+            background-image: linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px);
+            background-size: 40px 40px; position: relative; overflow: hidden;
+            cursor: grab; transition: background-color 2s ease;
+        }
+        #map-wrapper.night-mode { background-color: #020305; }
+        #map-wrapper:active { cursor: grabbing; }
+
+        #map-content {
+            position: absolute; width: 10000px; height: 10000px;
+            transform-origin: 0 0; top: 0; left: 0;
+        }
+        
+        .map-zoom-controls {
+            position: absolute; bottom: 20px; right: 15px; z-index: 40;
+            display: flex; flex-direction: column; gap: 8px;
+        }
+        .map-zoom-controls button {
+            width: 45px; height: 45px; font-size: 24px; font-weight: bold;
+            background: rgba(20, 25, 30, 0.9); border: 2px solid #0f0; border-radius: 8px;
+            color: #0f0; display: flex; justify-content: center; align-items: center; padding: 0;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.5); cursor: pointer;
+        }
+        .map-zoom-controls button:active { background: #0f0; color: #000; transform: translateY(2px); }
+
+        /* Harta DOM Elements */
+        .map-station {
+            position: absolute; width: 18px; height: 18px;
+            background: #fff; border: 4px solid #0055ff; border-radius: 50%;
+            transform: translate(-50%, -50%); z-index: 5; cursor: pointer;
+            transition: all 0.2s; box-shadow: 0 0 10px #0055ff;
+        }
+        .map-station.hub { width: 26px; height: 26px; border-color: #ff00ff; box-shadow: 0 0 15px #ff00ff; border-width: 5px; }
+        .map-station:hover { transform: translate(-50%, -50%) scale(1.4); background: #FFD700; }
+        .map-station.selected { background: #00FF00; border-color: #fff; box-shadow: 0 0 25px #00FF00; }
+        .map-station.target-highlight { border-color: #ff00ff; box-shadow: 0 0 20px #ff00ff; background: #550055; animation: pulseTarget 1s infinite; }
+        @keyframes pulseTarget { 50% { box-shadow: 0 0 5px #ff00ff; } }
+        
+        .map-station-label {
+            position: absolute; font-family: 'Courier New', monospace; font-weight: bold; font-size: 13px;
+            transform: translate(-50%, 18px); z-index: 6; text-align: center;
+            background: rgba(0, 0, 0, 0.85); color: #0ff; border: 1px solid #0ff; border-radius: 4px;
+            padding: 3px 6px; pointer-events: none; white-space: nowrap;
+        }
+
+        .station-badge {
+            position: absolute; width: 22px; height: 22px;
+            background: #FF0000; color: #FFF; font-size: 14px; font-weight: bold;
+            border-radius: 50%; display: flex; justify-content: center; align-items: center;
+            transform: translate(8px, -22px); z-index: 7; border: 2px solid #FFF;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.8); pointer-events: none; opacity: 0;
+            transition: opacity 0.3s;
+        }
+
+        .map-signal {
+            position: absolute; width: 14px; height: 14px; border-radius: 50%;
+            border: 2px solid #fff; transform: translate(-50%, -50%);
+            cursor: pointer; z-index: 10; box-shadow: 0 0 5px #000;
+            transition: transform 0.1s;
+        }
+        .map-signal:hover { transform: translate(-50%, -50%) scale(1.6); }
+        .map-signal.red { background: #ff0000; box-shadow: 0 0 8px #ff0000; }
+        .map-signal.green { background: #00ff00; box-shadow: 0 0 15px #00ff00; }
+
+        .map-train {
+            position: absolute; display: flex; flex-direction: column; align-items: center; justify-content: center;
+            transform: translate(-50%, -50%); z-index: 20; pointer-events: none;
+        }
+        .train-dot {
+            border: 2px solid #000; border-radius: 3px; box-shadow: 0 2px 5px rgba(0,0,0,0.8);
+            transition: box-shadow 0.2s; position: relative;
+        }
+        .train-dot.ir { background: #0055ff; width: 28px; height: 14px; }
+        .train-dot.r { background: #ff5500; width: 22px; height: 14px; }
+        .train-dot.marfa { background: #00aa00; width: 45px; height: 14px; }
+        
+        /* NIGHT MODE HEADLIGHTS (Faruri) */
+        #map-wrapper.night-mode .train-dot::before {
+            content: ''; position: absolute; top: 50%; right: -60px; width: 60px; height: 30px;
+            background: linear-gradient(90deg, rgba(255,255,200,0.8), transparent);
+            transform: translateY(-50%); clip-path: polygon(0 40%, 100% 0, 100% 100%, 0 60%);
+            pointer-events: none; opacity: 0; transition: opacity 0.5s; z-index: -1;
+        }
+        #map-wrapper.night-mode .map-train.moving .train-dot::before { opacity: 1; }
+
+        .map-train.highlighted .train-dot { box-shadow: 0 0 30px #0ff; border-color: #fff; transform: scale(1.4); }
+        .train-dot.waiting { animation: waitingBlink 0.8s infinite; }
+        .train-dot.crashed { background: #ff0000; animation: crashBlink 0.2s infinite; box-shadow: 0 0 25px #ff0000; border-color: #fff;}
+        .train-dot.broken { background: #888; border-color: #fff; animation: brokenBlink 0.5s infinite; box-shadow: 0 0 15px #fff; }
+        
+        .train-label {
+            background: rgba(0,0,0,0.85); color: #fff; font-size: 11px; padding: 2px 6px;
+            font-weight: bold; white-space: nowrap; margin-bottom: 2px; font-family: monospace; border-radius: 3px; border: 1px solid #444;
+            transform: rotate(0deg) !important; /* Mentine textul drept mereu */
+            position: absolute; top: -25px;
+        }
+        .train-speed-tag {
+            font-family: 'Courier New', monospace; font-size: 10px; color: #ffeb3b; background: rgba(0,0,0,0.9);
+            padding: 1px 4px; border-radius: 2px; position: absolute; bottom: -20px; white-space: nowrap; font-weight: bold; border: 1px solid #333;
+            transform: rotate(0deg) !important;
+        }
+
+        @keyframes waitingBlink { 50% { opacity: 0.3; } }
+        @keyframes crashBlink { 50% { transform: scale(1.6); } }
+        @keyframes brokenBlink { 50% { background: #444; border-color:#ffeb3b; } }
+
+        /* Floating Spawn Label */
+        .floating-label {
+            position: absolute; font-family: 'Courier New', monospace; font-weight: bold; font-size: 16px;
+            color: #fff; background: rgba(0, 200, 0, 0.9); border: 2px solid #0f0;
+            padding: 4px 8px; border-radius: 6px; z-index: 100; pointer-events: none;
+            animation: floatUp 4s forwards; white-space: nowrap; box-shadow: 0 4px 8px rgba(0,0,0,0.5);
+        }
+        @keyframes floatUp { 0% { transform: translate(-50%, 0); opacity: 1; } 100% { transform: translate(-50%, -80px); opacity: 0; } }
+
+        /* --- STATIE RADIO (MECANICI) --- */
+        #radio-panel {
+            position: absolute; top: 15px; left: 15px; width: 360px;
+            background: rgba(10, 30, 10, 0.85); border: 2px solid #0f0; border-radius: 8px;
+            color: #0f0; font-family: 'Courier New', monospace; font-size: 12px;
+            z-index: 40; display: flex; flex-direction: column; box-shadow: 0 5px 20px rgba(0,0,0,0.8);
+            pointer-events: none; 
+        }
+        .radio-header { background: #0f0; color: #000; font-weight: bold; padding: 6px 10px; font-size: 12px; border-radius: 4px 4px 0 0; }
+        #radio-log { padding: 10px; height: 160px; overflow-y: hidden; display: flex; flex-direction: column; justify-content: flex-end; gap: 6px; }
+        .radio-msg { animation: fadeIn 0.3s ease-in; text-shadow: 0 0 3px #0f0; line-height: 1.3;}
+
+        /* --- TABELA TRENURI / INTARZIERI --- */
+        #timetable-panel {
+            position: absolute; bottom: 15px; left: 15px; width: 360px;
+            background: rgba(10, 10, 30, 0.9); border: 2px solid #0ff; border-radius: 8px;
+            color: #fff; font-family: 'Courier New', monospace; font-size: 11px;
+            z-index: 40; display: flex; flex-direction: column; box-shadow: 0 5px 20px rgba(0,0,0,0.8);
+            pointer-events: auto; max-height: 250px;
+        }
+        .timetable-header { background: #0ff; color: #000; font-weight: bold; padding: 6px 10px; font-size: 12px; border-radius: 4px 4px 0 0; display: flex; justify-content: space-between; }
+        #timetable-list { padding: 5px; overflow-y: auto; display: flex; flex-direction: column; gap: 4px; flex-grow: 1; }
+        .tt-row { display: flex; justify-content: space-between; background: #222; padding: 4px 6px; border: 1px solid #444; border-radius: 3px; }
+        .tt-delay { color: #f00; font-weight: bold; }
+        .tt-ontime { color: #0f0; }
+
+        /* --- PANOU DISPECER / INSPECTOR --- */
+        #map-control-panel {
+            position: absolute; top: 15px; right: 15px; width: 340px;
+            background: #1a1a2e; border: 2px solid #0f0; padding: 15px; z-index: 45;
+            display: flex; flex-direction: column; gap: 10px; box-shadow: 0 10px 30px rgba(0,0,0,0.8);
+            border-radius: 8px; color: #fff; transition: max-height 0.3s;
+        }
+        .minimize-btn {
+            background: #222; color: #0f0; border: 1px solid #0f0; border-radius: 4px;
+            width: 24px; height: 24px; display: flex; justify-content: center; align-items: center;
+            cursor: pointer; font-weight: bold; font-family: monospace;
+        }
+        .minimize-btn:hover { background: #0f0; color: #000; }
+        .hidden-content { display: none !important; }
+        
+        #map-panel-content { max-height: 60vh; overflow-y: auto; display: flex; flex-direction: column; }
+
+        .train-select-btn {
+            display: block; width: 100%; text-align: left; background: #222; color: #0ff;
+            border: 1px solid #444; padding: 10px; margin-bottom: 6px; cursor: pointer;
+            font-family: monospace; font-weight: bold; font-size: 13px; border-radius: 4px;
+        }
+        .train-select-btn:hover { background: #333; border-color: #0ff; }
+        .train-select-btn.active { background: #0ff; color: #000; border-color: #fff; box-shadow: 0 0 10px #0ff; }
+
+        .route-btn {
+            width: 100%; margin-bottom: 6px; text-align: left; color:#000; font-weight:bold;
+            background: #0f0; border: 2px solid #fff; padding: 10px 12px; cursor: pointer;
+            border-radius: 4px; font-size: 14px; box-shadow: 0 3px 5px rgba(0,0,0,0.5);
+        }
+        .route-btn:active { transform: translateY(2px); box-shadow: 0 1px 2px rgba(0,0,0,0.5); }
+        .route-btn.gps-route { background: #ffeb3b; border-color: #000; }
+
+        /* Toasts (Notificari elegante jos dreapta) */
+        #toast-container {
+            position: absolute; bottom: 20px; right: 20px;
+            display: flex; flex-direction: column; gap: 10px; z-index: 10000; pointer-events: none;
+        }
+        .toast {
+            background: rgba(20, 20, 30, 0.95); border: 1px solid #444; color: #eee;
+            padding: 15px 20px; border-radius: 8px; font-family: 'Courier New', monospace; font-size: 14px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.8); animation: slideInRight 0.3s forwards; max-width: 380px;
+            line-height: 1.4; pointer-events: auto;
+        }
+        .toast.success { border-left: 5px solid #0f0; }
+        .toast.error { border-left: 5px solid #f00; color: #ff5555; font-weight: bold; }
+        .toast.warn { border-left: 5px solid #ffeb3b; }
+        @keyframes slideInRight { from { transform: translateX(50px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+
+        /* RESPONSIVE DESIGN (MOBIL) */
+        @media (max-width: 800px) {
+            #radio-panel { display: none; }
+            #timetable-panel { display: none; }
+            .map-zoom-controls { bottom: 45vh; right: 15px; left: auto; }
+            #map-control-panel {
+                top: auto; bottom: 0; right: 0; left: 0; width: auto;
+                border-radius: 15px 15px 0 0; padding: 15px; border-width: 4px 0 0 0;
+                background: rgba(26, 26, 46, 0.98);
+            }
+            #toast-container { bottom: auto; top: 60px; right: 10px; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- MENIU STARTUP -->
+    <div id="main-menu">
+        <div class="menu-title">CFR SCADA v3.0</div>
+        <div class="menu-subtitle">Sistem Integrat de Control și Dispecerat Feroviar</div>
+        <button class="menu-btn" onclick="startGame()">▶ ÎNCEPE TURA</button>
+        <div style="margin-top: 30px; font-size: 14px; color: #888; text-align: center; max-width: 600px;">
+            Atenție: Preluarea turei implică gestionarea traficului pe Magistrala 500 și secțiile adiacente.<br>
+            Respectați timpii de mers și indicațiile semnalelor BLA.
+        </div>
+    </div>
+
+    <div class="window">
+        <!-- BARA SUS -->
+        <div class="sys-info-bar">
+            <div>Timp: <strong id="sys-time">12:00:00</strong></div>
+            <div style="display:flex; gap: 5px; align-items: center;">
+                <span>Viteză Simulare:</span>
+                <select id="sim-speed-select" class="speed-select" onchange="MapSystem.changeSimSpeed(this.value)">
+                    <option value="1">1x (Realist)</option>
+                    <option value="10">10x (Echilibrat)</option>
+                    <option value="60" selected>60x (Rapid)</option>
+                </select>
+            </div>
+            <div>Meteo: <strong id="sys-weather" style="color: #ffeb3b;">☀️ Senin</strong></div>
+            <div><strong id="sys-restr" style="color: #0f0;">Trafic Deschis (100%)</strong></div>
+            <div style="display: flex; align-items: center; gap: 8px;">
+                <span>Sistem BLA:</span>
+                <button class="control-toggle-btn" id="bla-mode-btn" onclick="MapSystem.toggleAutoBLA()">MANUAL</button>
+            </div>
+            <div class="score-box">Punctaj: <span id="sys-score">0</span></div>
+        </div>
+
+        <div id="map-wrapper">
+            
+            <div id="radio-panel">
+                <div class="radio-header">📻 FRECVENȚĂ DISPECERAT & MECANICI (CH-7)</div>
+                <div id="radio-log"></div>
+            </div>
+
+            <div id="timetable-panel">
+                <div class="timetable-header">
+                    <span>SITUAȚIE TRENURI (LIVE)</span>
+                    <span id="active-trains-count">0 Trenuri</span>
+                </div>
+                <div id="timetable-list">
+                    <div style="padding: 10px; text-align: center; color: #888;">Niciun tren în rețea.</div>
+                </div>
+            </div>
+
+            <!-- HARTA -->
+            <div id="map-content">
+                <!-- Strat pt desenat calea de rulare dinamică -->
+                <svg id="path-layer" width="100%" height="100%" style="position:absolute; top:0; left:0; z-index:0; pointer-events:none;"></svg>
+                <!-- Linii fizice -->
+                <svg id="map-svg" width="100%" height="100%" style="position:absolute; top:0; left:0; z-index:1; pointer-events:none;"></svg>
+                <div id="map-elements" style="position:absolute; top:0; left:0; width:100%; height:100%;"></div>
+            </div>
+
+            <div class="map-zoom-controls">
+                <button onclick="MapSystem.setZoom(0.15)">+</button>
+                <button onclick="MapSystem.setZoom(-0.15)">-</button>
+            </div>
+            
+            <div id="toast-container"></div>
+
+            <!-- PANOU DISPECER -->
+            <div id="map-control-panel">
+                <div style="font-weight: bold; color: #0f0; border-bottom: 2px solid #0f0; padding-bottom: 8px; margin-bottom: 10px; font-size:16px; display: flex; justify-content: space-between; align-items: center;">
+                    <span>Panou Dispecer Gări</span>
+                    <button class="minimize-btn" onclick="toggleDispatcherPanel()">_</button>
+                </div>
+                <div id="map-panel-content">
+                    <div style="color:#aaa; text-align:center; padding: 20px 0;">
+                        <em>Trageți de hartă pentru a explora rețeaua.<br>Atingeți o stație pentru a ruta trenurile parcate acolo.</em>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+<script>
+// --- UI Functions ---
+function startGame() {
+    document.getElementById('main-menu').style.display = 'none';
+    MapSystem.init();
+}
+
+function toggleDispatcherPanel() {
+    const content = document.getElementById('map-panel-content');
+    content.classList.toggle('hidden-content');
+}
+
+/* ==========================================
+ * AUDIO SYNTHESIZER (Web Audio API)
+ * ========================================== */
+const AudioSys = {
+    ctx: null,
+    init: function() {
+        if (!this.ctx) {
+            this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+        }
+    },
+    playTone: function(freq, type, duration, vol=0.1) {
+        if (!this.ctx) return;
+        try {
+            let osc = this.ctx.createOscillator();
+            let gain = this.ctx.createGain();
+            osc.type = type; 
+            osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
+            gain.gain.setValueAtTime(vol, this.ctx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + duration);
+            osc.connect(gain); gain.connect(this.ctx.destination);
+            osc.start(); osc.stop(this.ctx.currentTime + duration);
+        } catch(e) {}
+    },
+    radioBeep: function() { this.playTone(900, 'square', 0.1, 0.05); setTimeout(()=>this.playTone(1200, 'square', 0.15, 0.05), 100); },
+    dispatch: function() { this.playTone(600, 'triangle', 0.2, 0.1); },
+    error: function() { this.playTone(200, 'sawtooth', 0.5, 0.2); setTimeout(()=>this.playTone(150, 'sawtooth', 0.5, 0.2), 200); },
+    success: function() { this.playTone(400, 'sine', 0.2, 0.1); setTimeout(()=>this.playTone(600, 'sine', 0.2, 0.1), 200); setTimeout(()=>this.playTone(800, 'sine', 0.4, 0.1), 400); }
+};
+
+document.body.addEventListener('touchstart', () => AudioSys.init(), {once:true});
+document.body.addEventListener('mousedown', () => AudioSys.init(), {once:true});
+
+/* ==========================================
+ * SCADA NETWORK CORE
+ * ========================================== */
+const NODES = {
+    'BAC': { name: 'Bacău (Nod)', x: 6900, y: 7600, hub: true },
+    'ROM': { name: 'Roman', x: 6700, y: 6900, hub: true },
+    'SAB': { name: 'Săbăoani', x: 6500, y: 6600, hub: false }, 
+    'PAS': { name: 'Pașcani (Nod)', x: 6300, y: 6300, hub: true },
+    'DOL': { name: 'Dolhasca', x: 5700, y: 5700, hub: true },
+    'LIT': { name: 'Liteni', x: 5500, y: 5500, hub: false },
+    'VER': { name: 'Verești (Nod)', x: 5300, y: 5300, hub: true },
+    'SV':  { name: 'Suceava (Nod)', x: 4800, y: 4800, hub: true },
+    'SVN': { name: 'Suceava Nord', x: 4600, y: 4600, hub: false },
+    'DAR': { name: 'Dărmănești', x: 4300, y: 4300, hub: true },
+    'DOR': { name: 'Dornești', x: 3900, y: 3300, hub: true },
+    'BCT': { name: 'Bălcăuți', x: 3700, y: 2900, hub: false }, 
+    'VIC': { name: 'Vicșani', x: 3500, y: 2500, hub: true },
+    
+    'RAD': { name: 'Rădăuți', x: 3300, y: 3500, hub: false },
+    'GAL': { name: 'Gălănești', x: 3000, y: 3600, hub: false },
+    'VIJ': { name: 'Vicovu de Jos', x: 2700, y: 3700, hub: false },
+    'PUT': { name: 'Putna', x: 2400, y: 3800, hub: true },
+
+    'TFR': { name: 'Tg. Frumos', x: 7100, y: 6000, hub: false },
+    'LEC': { name: 'Lețcani', x: 7500, y: 5800, hub: false }, 
+    'IAS': { name: 'Iași (Nod)', x: 8000, y: 5700, hub: true },
+    
+    'GH':  { name: 'Gura Humorului', x: 3900, y: 4900, hub: true },
+    'FRN': { name: 'Frasin', x: 3600, y: 5000, hub: false }, 
+    'VAM': { name: 'Vama', x: 3300, y: 5100, hub: false }, 
+    'CPL': { name: 'Câmpulung M.', x: 3000, y: 5200, hub: true },
+    'SAD': { name: 'Sadova', x: 2700, y: 5300, hub: false },
+    'POJ': { name: 'Pojorâta', x: 2400, y: 5400, hub: false },
+    'VD':  { name: 'Vatra Dornei', x: 1900, y: 5500, hub: true },
+    'FLR': { name: 'Floreni', x: 1400, y: 5700, hub: false },
+    'ILV': { name: 'Ilva Mică (Nod)', x: 900, y: 5900, hub: true },
+    'BEC': { name: 'Beclean pe Someș', x: 600, y: 5700, hub: true },
+    'DEJ': { name: 'Dej Călători', x: 450, y: 5100, hub: true },
+    'CJ':  { name: 'Cluj-Napoca', x: 150, y: 4300, hub: true },
+    
+    'CAC': { name: 'Cacica', x: 3700, y: 4400, hub: false },
+    'BOT': { name: 'Botoșani', x: 5800, y: 4300, hub: true },
+    'FLT': { name: 'Fălticeni', x: 5400, y: 6100, hub: false },
+
+    'PNT': { name: 'Piatra Neamț', x: 6100, y: 7300, hub: true },
+    'BCZ': { name: 'Bicaz', x: 5700, y: 7800, hub: false }
+};
+
+const EDGES = [
+    { id: 'M0', from: 'BAC', to: 'ROM', double: true },
+    { id: 'M01', from: 'ROM', to: 'SAB', double: true },
+    { id: 'M02', from: 'SAB', to: 'PAS', double: true },
+    { id: 'M1', from: 'PAS', to: 'DOL', double: true },
+    { id: 'M2a', from: 'DOL', to: 'LIT', double: true },
+    { id: 'M2b', from: 'LIT', to: 'VER', double: true },
+    { id: 'M3', from: 'VER', to: 'SV', double: true },
+    { id: 'M4a', from: 'SV', to: 'SVN', double: true },
+    { id: 'M4b', from: 'SVN', to: 'DAR', double: true },
+    { id: 'M5', from: 'DAR', to: 'DOR', double: true },
+    { id: 'M6', from: 'DOR', to: 'BCT', double: true },
+    { id: 'M7', from: 'BCT', to: 'VIC', double: true },
+    
+    { id: 'M8', from: 'PAS', to: 'TFR', double: true },
+    { id: 'M9', from: 'TFR', to: 'LEC', double: true },
+    { id: 'M10', from: 'LEC', to: 'IAS', double: true },
+    
+    { id: 'M12', from: 'ILV', to: 'BEC', double: true },
+    { id: 'M13', from: 'BEC', to: 'DEJ', double: true },
+    { id: 'M14', from: 'DEJ', to: 'CJ', double: true },
+
+    { id: 'L1', from: 'VER', to: 'BOT', double: false },
+    { id: 'L2', from: 'DOL', to: 'FLT', double: false },
+    { id: 'L3', from: 'SV', to: 'GH', double: false },
+    { id: 'L3a', from: 'GH', to: 'FRN', double: false },
+    { id: 'L3b', from: 'FRN', to: 'VAM', double: false },
+    { id: 'L4', from: 'VAM', to: 'CPL', double: false },
+    { id: 'L4a', from: 'CPL', to: 'SAD', double: false },
+    { id: 'L4b', from: 'SAD', to: 'POJ', double: false },
+    { id: 'L5', from: 'POJ', to: 'VD', double: false },
+    { id: 'L5b', from: 'VD', to: 'FLR', double: false },
+    { id: 'L5c', from: 'FLR', to: 'ILV', double: false },
+    { id: 'L6', from: 'DAR', to: 'CAC', double: false },
+    { id: 'L7', from: 'DOR', to: 'RAD', double: false },
+    { id: 'L8', from: 'RAD', to: 'GAL', double: false },
+    { id: 'L8a', from: 'GAL', to: 'VIJ', double: false },
+    { id: 'L8b', from: 'VIJ', to: 'PUT', double: false },
+    { id: 'L9', from: 'BAC', to: 'PNT', double: false },
+    { id: 'L10', from: 'PNT', to: 'BCZ', double: false }
+];
+
+const TRAIN_CATEGORIES = [
+    { type: 'ir', prefix: 'IR', speed: 0.08, class: 'ir', desc: 'InterRegio (Fără oprire halte)' },
+    { type: 'r', prefix: 'R', speed: 0.05, class: 'r', desc: 'Regio (Oprește peste tot)' },
+    { type: 'marfa', prefix: 'M', speed: 0.035, class: 'marfa', desc: 'Marfar (Oprește peste tot)' }
+];
+
+/* ==========================================
+ * SIMULATOR STATE & MAP SYSTEM
+ * ========================================== */
+const MapSystem = {
+    trains: [],
+    signals: [],
+    selectedNode: null,
+    selectedTrainId: null,
+    score: 0,
+    autoBLA: false, 
+    simSpeedMultiplier: 60, 
+    
+    lastTime: performance.now(),
+    spawnTimer: 0,
+    animReq: null,
+    
+    simTime: new Date(),
+    weatherTimer: 0,
+    currentWeather: { id: 'CLEAR', speed: 1.0 },
+    
+    mapOffsetX: -3200,
+    mapOffsetY: -3500,
+    zoom: 0.35,
+    isDragging: false,
+    dragStartX: 0,
+    dragStartY: 0,
+    
+    radioQueue: [],
+
+    init: function() {
+        this.simTime.setHours(19, 58, 0); // Aproape de noapte pt a vedea efectul de faruri
+        this.updateTransform();
+        this.drawMap();
+        this.setupTouchAndMouse();
+        
+        let initialSpawns = ['SV', 'PAS', 'CJ', 'VD'];
+        initialSpawns.forEach(loc => this.spawnTrain(null, loc));
+        
+        this.lastTime = performance.now();
+        this.animReq = requestAnimationFrame((ts) => this.loop(ts));
+        this.showToast("Sistem BLA Regional conectat.", "success");
+    },
+
+    changeSimSpeed: function(val) {
+        this.simSpeedMultiplier = parseInt(val);
+        this.showToast(`Viteză simulare setată la ${val}x.`, 'info');
+    },
+
+    // --- BFS PATHFINDING ---
+    getPath: function(start, end) {
+        let queue = [[start]];
+        let visited = new Set([start]);
+        
+        while(queue.length > 0) {
+            let path = queue.shift();
+            let node = path[path.length - 1];
+            
+            if(node === end) return path;
+            
+            let neighbors = [];
+            EDGES.forEach(e => {
+                if(e.from === node) neighbors.push(e.to);
+                if(e.to === node) neighbors.push(e.from);
+            });
+            
+            for(let n of neighbors) {
+                if(!visited.has(n)) {
+                    visited.add(n);
+                    queue.push([...path, n]);
+                }
+            }
+        }
+        return [start, end]; 
+    },
+
+    toggleAutoBLA: function() {
+        this.autoBLA = !this.autoBLA;
+        let btn = document.getElementById('bla-mode-btn');
+        if(this.autoBLA) {
+            btn.innerText = "AUTOMAT";
+            btn.classList.add('auto');
+            this.showToast("Modul AUTOMAT activat. Trenurile trec liber de semafoare.", "warn");
+        } else {
+            btn.innerText = "MANUAL";
+            btn.classList.remove('auto');
+            this.showToast("Modul MANUAL activat. Dispecerul controlează semafoarele!", "info");
+        }
+    },
+
+    radioMsg: function(speaker, text) {
+        AudioSys.radioBeep();
+        const log = document.getElementById('radio-log');
+        const msg = document.createElement('div');
+        msg.className = 'radio-msg';
+        let speakerColor = speaker === 'Dispecer' ? '#fff' : '#0ff';
+        msg.innerHTML = `> <span style="color:${speakerColor}; font-weight:bold;">${speaker}:</span> ${text}`;
+        log.appendChild(msg);
+        if(log.childNodes.length > 6) log.firstChild.remove();
+    },
+
+    showToast: function(msg, type = 'info') {
+        const container = document.getElementById('toast-container');
+        if(!container) return;
+        const toast = document.createElement('div');
+        toast.className = `toast ${type}`;
+        toast.innerText = msg;
+        container.appendChild(toast);
+        setTimeout(() => { toast.style.opacity = '0'; setTimeout(() => toast.remove(), 500); }, 6000);
+    },
+
+    updateScore: function(points) {
+        this.score += points;
+        document.getElementById('sys-score').innerText = this.score;
+        if(points > 0) AudioSys.success();
+    },
+
+    setupTouchAndMouse: function() {
+        const wrapper = document.getElementById('map-wrapper');
+        
+        wrapper.addEventListener('mousedown', (e) => {
+            if(e.target.closest('#map-control-panel') || e.target.closest('.map-zoom-controls') || e.target.closest('#radio-panel') || e.target.closest('#timetable-panel') || e.target.classList.contains('map-signal')) return;
+            this.isDragging = true;
+            this.dragStartX = e.clientX; this.dragStartY = e.clientY;
+            wrapper.style.cursor = 'grabbing';
+        });
+
+        window.addEventListener('mousemove', (e) => {
+            if(!this.isDragging) return;
+            this.mapOffsetX += (e.clientX - this.dragStartX) * (1/this.zoom);
+            this.mapOffsetY += (e.clientY - this.dragStartY) * (1/this.zoom);
+            this.dragStartX = e.clientX; this.dragStartY = e.clientY;
+            this.updateTransform();
+        });
+
+        window.addEventListener('mouseup', () => { this.isDragging = false; wrapper.style.cursor = 'grab'; });
+        wrapper.addEventListener('mouseleave', () => { this.isDragging = false; wrapper.style.cursor = 'grab'; });
+        
+        wrapper.addEventListener('wheel', (e) => {
+            e.preventDefault();
+            this.setZoom(e.deltaY < 0 ? 0.05 : -0.05);
+        }, {passive: false});
+
+        wrapper.addEventListener('touchstart', (e) => {
+            AudioSys.init();
+            if(e.target.closest('#map-control-panel') || e.target.closest('.map-zoom-controls') || e.target.closest('#radio-panel') || e.target.closest('#timetable-panel') || e.target.classList.contains('map-signal')) return;
+            if(e.touches.length === 1) {
+                this.isDragging = true;
+                this.dragStartX = e.touches[0].clientX; this.dragStartY = e.touches[0].clientY;
+            }
+        }, {passive: false});
+
+        wrapper.addEventListener('touchmove', (e) => {
+            if(!this.isDragging) return;
+            if(e.touches.length === 1) {
+                e.preventDefault();
+                this.mapOffsetX += (e.touches[0].clientX - this.dragStartX) * (1/this.zoom);
+                this.mapOffsetY += (e.touches[0].clientY - this.dragStartY) * (1/this.zoom);
+                this.dragStartX = e.touches[0].clientX; this.dragStartY = e.touches[0].clientY;
+                this.updateTransform();
+            }
+        }, {passive: false});
+
+        wrapper.addEventListener('touchend', () => { this.isDragging = false; });
+    },
+
+    setZoom: function(delta) {
+        this.zoom += delta;
+        if(this.zoom < 0.15) this.zoom = 0.15;
+        if(this.zoom > 2.0) this.zoom = 2.0;
+        this.updateTransform();
+    },
+
+    updateTransform: function() {
+        document.getElementById('map-content').style.transform = `scale(${this.zoom}) translate(${this.mapOffsetX}px, ${this.mapOffsetY}px)`;
+    },
+
+    drawMap: function() {
+        const svg = document.getElementById('map-svg');
+        const container = document.getElementById('map-elements');
+        container.innerHTML = ''; 
+        this.signals = [];
+
+        let htmlSvg = '';
+        let colorDouble = "#4B5563"; 
+        let colorSingle = "#9CA3AF";
+
+        EDGES.forEach(edge => {
+            let n1 = NODES[edge.from]; let n2 = NODES[edge.to];
+            
+            let dx = n2.x - n1.x; let dy = n2.y - n1.y;
+            let dist = Math.sqrt(dx*dx + dy*dy);
+            let nx = -dy / dist; let ny = dx / dist; 
+            let offsetAmt = 16.0;
+            
+            if(edge.double) {
+                let ox = nx * offsetAmt; let oy = ny * offsetAmt;
+                htmlSvg += `<line x1="${n1.x+ox}" y1="${n1.y+oy}" x2="${n2.x+ox}" y2="${n2.y+oy}" stroke="${colorDouble}" stroke-width="8"/>`;
+                htmlSvg += `<line x1="${n1.x-ox}" y1="${n1.y-oy}" x2="${n2.x-ox}" y2="${n2.y-oy}" stroke="${colorDouble}" stroke-width="8"/>`;
+                
+                this.createSignal({ id: `sig_${edge.from}_${edge.to}`, from: edge.from, to: edge.to, x: n1.x + (dx*0.5) + ox, y: n1.y + (dy*0.5) + oy, isDouble: true }); 
+                this.createSignal({ id: `sig_${edge.to}_${edge.from}`, from: edge.to, to: edge.from, x: n1.x + (dx*0.5) - ox, y: n1.y + (dy*0.5) - oy, isDouble: true }); 
+                
+            } else {
+                htmlSvg += `<line x1="${n1.x}" y1="${n1.y}" x2="${n2.x}" y2="${n2.y}" stroke="${colorSingle}" stroke-width="8"/>`;
+                this.createSignal({ id: `sig_${edge.id}`, from: null, to: null, edgeId: edge.id, x: n1.x + (dx*0.5), y: n1.y + (dy*0.5), isDouble: false });
+            }
+        });
+        
+        svg.innerHTML = htmlSvg;
+
+        for(let key in NODES) {
+            let n = NODES[key];
+            let st = document.createElement('div');
+            st.className = `map-station ${n.hub ? 'hub' : ''}`;
+            st.id = `node-${key}`;
+            st.style.left = `${n.x}px`; st.style.top = `${n.y}px`;
+            
+            let badge = document.createElement('div');
+            badge.className = 'station-badge';
+            badge.id = `badge-${key}`;
+            st.appendChild(badge);
+
+            st.onclick = (e) => {
+                e.stopPropagation();
+                this.selectNode(key);
+            };
+            container.appendChild(st);
+
+            let lbl = document.createElement('div');
+            lbl.className = 'map-station-label';
+            lbl.style.left = `${n.x}px`; lbl.style.top = `${n.y}px`;
+            lbl.innerText = n.name;
+            container.appendChild(lbl);
+        }
+    },
+
+    createSignal: function(data) {
+        let sigData = { ...data, state: 'RED' };
+        this.signals.push(sigData);
+
+        let container = document.getElementById('map-elements');
+        let sigDiv = document.createElement('div');
+        sigDiv.className = 'map-signal red';
+        sigDiv.id = sigData.id;
+        sigDiv.style.left = `${sigData.x}px`; sigDiv.style.top = `${sigData.y}px`;
+        
+        sigDiv.onclick = (e) => {
+            e.stopPropagation();
+            AudioSys.playTone(800, 'sine', 0.1);
+            if(sigData.state === 'RED') {
+                sigData.state = 'GREEN';
+                sigDiv.classList.remove('red'); sigDiv.classList.add('green');
+            } else {
+                sigData.state = 'RED';
+                sigDiv.classList.remove('green'); sigDiv.classList.add('red');
+            }
+        };
+        container.appendChild(sigDiv);
+    },
+
+    selectNode: function(nodeId) {
+        AudioSys.playTone(400, 'square', 0.1);
+        if(this.selectedNode) {
+            let prevNode = document.getElementById(`node-${this.selectedNode}`);
+            if(prevNode) prevNode.classList.remove('selected');
+        }
+        this.selectedNode = nodeId;
+        this.selectedTrainId = null; 
+        
+        let currNode = document.getElementById(`node-${nodeId}`);
+        if(currNode) currNode.classList.add('selected');
+        
+        this.updateControlPanel();
+        this.updateHighlights();
+    },
+
+    selectTrainInStation: function(trainId) {
+        AudioSys.playTone(600, 'square', 0.1);
+        this.selectedTrainId = trainId;
+        this.updateControlPanel();
+        this.updateHighlights();
+    },
+
+    drawDynamicPath: function(train) {
+        const layer = document.getElementById('path-layer');
+        layer.innerHTML = '';
+        if(!train || !train.path || train.path.length < 2) return;
+
+        let pathHtml = `<polyline points="`;
+        train.path.forEach(nodeId => {
+            pathHtml += `${NODES[nodeId].x},${NODES[nodeId].y} `;
+        });
+        pathHtml += `" fill="none" stroke="#00ffff" stroke-width="4" stroke-dasharray="10,10" style="opacity:0.6; animation: dash 20s linear infinite;"/>`;
+        
+        // Add keyframes for dash animation in a style tag just for the path
+        pathHtml += `<style>@keyframes dash { to { stroke-dashoffset: -1000; } }</style>`;
+        
+        layer.innerHTML = pathHtml;
+    },
+
+    updateHighlights: function() {
+        document.querySelectorAll('.map-train.highlighted').forEach(el => el.classList.remove('highlighted'));
+        document.querySelectorAll('.map-station.target-highlight').forEach(el => el.classList.remove('target-highlight'));
+        document.getElementById('path-layer').innerHTML = ''; // Clear path
+        
+        if(this.selectedTrainId) {
+            let t = this.trains.find(tr => tr.id === this.selectedTrainId);
+            if(t && t.domElement) {
+                t.domElement.classList.add('highlighted');
+                this.drawDynamicPath(t); // Draw the planned path
+                
+                let target = t.destFinal;
+                if(target) {
+                    let st = document.getElementById(`node-${target}`);
+                    if(st) st.classList.add('target-highlight');
+                }
+            }
+        }
+    },
+
+    updateControlPanel: function() {
+        const panel = document.getElementById('map-panel-content');
+        
+        if(!this.selectedNode) {
+            panel.innerHTML = '<div style="color:#aaa; text-align:center; padding: 20px 0;"><em>Atingeți o stație pe hartă pentru a dirija trenurile parcate acolo.</em></div>';
+            return;
+        }
+
+        let nodeName = NODES[this.selectedNode].name;
+        let parkedTrains = this.trains.filter(t => t.currentNode === this.selectedNode && t.state === 'IDLE');
+        
+        let html = ``;
+
+        if(parkedTrains.length === 0) {
+            html += `<div style="color: #0f0; font-weight: bold; text-align:center; padding:15px;">Stația ${nodeName} e liberă.</div>`;
+        } else {
+            html += `<div style="margin-bottom: 8px; font-weight: bold; color: #fff;">Garate în ${nodeName}:</div>`;
+            
+            parkedTrains.forEach(t => {
+                let isActive = this.selectedTrainId === t.id ? 'active' : '';
+                html += `<div class="train-select-btn ${isActive}" onclick="MapSystem.selectTrainInStation('${t.id}')">
+                            🚂 <strong>${t.id}</strong> <span style="color:#aaa;">(${t.cat.desc})</span><br>
+                            <span style="font-size:11px; font-weight:normal; color:#0ff;">Destinație: ${NODES[t.destFinal].name}</span>
+                        </div>`;
+            });
+
+            if(!this.selectedTrainId && parkedTrains.length > 0) {
+                this.selectedTrainId = parkedTrains[0].id;
+                this.updateHighlights(); 
+            }
+
+            let activeTrain = parkedTrains.find(t => t.id === this.selectedTrainId);
+            
+            if(activeTrain) {
+                html += `<div style="background: rgba(0, 255, 0, 0.1); border: 1px solid #0f0; padding: 10px; margin-top:10px; border-radius: 4px;">
+                    <div style="font-weight: bold; margin-bottom: 8px; color:#0f0;">Trasează rută pt ${activeTrain.id}:</div>`;
+                
+                let neighbors = [];
+                EDGES.forEach(e => {
+                    if(e.from === this.selectedNode) neighbors.push(e.to);
+                    if(e.to === this.selectedNode) neighbors.push(e.from);
+                });
+
+                let nextInPath = null;
+                if(activeTrain.path && activeTrain.path.length > activeTrain.pathIndex + 1) {
+                    nextInPath = activeTrain.path[activeTrain.pathIndex + 1];
+                }
+
+                neighbors.forEach(n => {
+                    let isDest = (n === activeTrain.destFinal) ? ' (Destinație)' : '';
+                    let isRecommended = (n === nextInPath) ? '⭐ (Rută GPS)' : '';
+                    let routeClass = isRecommended ? 'route-btn gps-route' : 'route-btn';
+                    
+                    html += `<button class="${routeClass}" onclick="MapSystem.dispatchTrain('${activeTrain.id}', '${n}')">► Spre ${NODES[n].name}${isDest} ${isRecommended}</button>`;
+                });
+                html += `</div>`;
+            }
+        }
+        panel.innerHTML = html;
+    },
+
+    updateTimetable: function() {
+        const list = document.getElementById('timetable-list');
+        const countStr = document.getElementById('active-trains-count');
+        
+        let activeT = this.trains.filter(t => t.state !== 'DONE' && t.state !== 'CRASHED');
+        countStr.innerText = `${activeT.length} Trenuri`;
+
+        if(activeT.length === 0) {
+            list.innerHTML = '<div style="padding: 10px; text-align: center; color: #888;">Niciun tren în rețea.</div>';
+            return;
+        }
+
+        let html = '';
+        activeT.forEach(t => {
+            let delayStr = t.delayMinutes > 0 ? `<span class="tt-delay">+${Math.floor(t.delayMinutes)}m</span>` : `<span class="tt-ontime">La timp</span>`;
+            let locStr = t.state === 'IDLE' ? `Oprit în ${NODES[t.currentNode].name}` : `Spre ${t.targetNode ? NODES[t.targetNode].name : '...'}`;
+            if(t.state === 'BROKEN') locStr = `<span style="color:#ffeb3b">DEFECT SECȚIE</span>`;
+
+            html += `<div class="tt-row">
+                        <div style="flex: 1;"><strong>${t.id}</strong> ➔ ${NODES[t.destFinal].name}</div>
+                        <div style="flex: 1; color:#aaa;">${locStr}</div>
+                        <div style="width: 50px; text-align:right;">${delayStr}</div>
+                     </div>`;
+        });
+        list.innerHTML = html;
+    },
+
+    dispatchTrain: function(trainId, nextNode) {
+        AudioSys.dispatch();
+        let t = this.trains.find(tr => tr.id === trainId);
+        if(!t || t.state !== 'IDLE') return;
+
+        t.targetNode = nextNode;
+        t.state = 'MOVING_TO_SIGNAL'; 
+        
+        if (t.path && nextNode !== t.path[t.pathIndex + 1]) {
+             t.path = this.getPath(t.currentNode, t.destFinal);
+             t.pathIndex = 0; 
+        }
+        
+        this.radioMsg(`Dispecer`, `Liber pe secție spre ${NODES[nextNode].name} pentru ${t.id}.`);
+        
+        this.selectedTrainId = null;
+        this.updateControlPanel();
+        this.updateHighlights();
+        this.updateTimetable();
+    },
+
+    spawnTrain: function(forcedId = null, startNode = null) {
+        let cat = TRAIN_CATEGORIES[Math.floor(Math.random() * TRAIN_CATEGORIES.length)];
+        let id = forcedId || `${cat.prefix} ${Math.floor(Math.random()*9000)+100}`;
+        
+        let hubs = Object.keys(NODES).filter(k => NODES[k].hub);
+        let start = startNode || hubs[Math.floor(Math.random()*hubs.length)];
+        
+        let possibleDests = hubs.filter(n => n !== start);
+        let dest = possibleDests[Math.floor(Math.random()*possibleDests.length)];
+
+        let path = this.getPath(start, dest);
+
+        let train = {
+            id: id, cat: cat, currentNode: start, targetNode: null, destFinal: dest,
+            path: path, pathIndex: 0,
+            progress: 0, state: 'IDLE', domElement: null,
+            breakdownTimer: 0, currentSpeedKmh: 0, delayMinutes: 0
+        };
+        
+        let tDiv = document.createElement('div');
+        tDiv.className = 'map-train';
+
+        let dot = document.createElement('div'); dot.className = `train-dot ${cat.class} waiting`;
+        let lbl = document.createElement('div'); lbl.className = 'train-label'; lbl.innerText = id;
+        let speedTag = document.createElement('div'); speedTag.className = 'train-speed-tag'; speedTag.style.display = 'none';
+        
+        tDiv.appendChild(dot); tDiv.appendChild(lbl); tDiv.appendChild(speedTag);
+        document.getElementById('map-elements').appendChild(tDiv);
+        train.domElement = tDiv;
+
+        this.trains.push(train);
+        
+        let fText = document.createElement('div');
+        fText.className = 'floating-label';
+        fText.innerText = `+ ${id} (${NODES[start].name})`;
+        fText.style.left = `${NODES[start].x}px`;
+        fText.style.top = `${NODES[start].y - 30}px`;
+        document.getElementById('map-elements').appendChild(fText);
+        setTimeout(()=>fText.remove(), 4000);
+
+        this.showToast(`Nou: ${id} a apărut în ${NODES[start].name}. Rută finală: ${NODES[dest].name}.`);
+        if(this.selectedNode === start) this.updateControlPanel();
+        this.updateTimetable();
+    },
+
+    changeWeather: function() {
+        const states = [
+            { id: 'CLEAR', name: '☀️ Senin', restr: 'Trafic Deschis (100%)', speed: 1.0, color: '#0f0' },
+            { id: 'RAIN', name: '🌧️ Ploaie', restr: 'Aderență scăzută (Viteză 80%)', speed: 0.8, color: '#0ff' },
+            { id: 'HEAT', name: '🔥 Caniculă', restr: 'Dilatare șină (BAR: Viteză 60%)', speed: 0.6, color: '#ff5722' },
+            { id: 'SNOW', name: '❄️ Viscol', restr: 'Condiții grele (BAR: Viteză 50%)', speed: 0.5, color: '#fff' }
+        ];
+        let r = Math.random();
+        let chosen = states[0];
+        if(r > 0.6 && r <= 0.8) chosen = states[1];
+        else if(r > 0.8 && r <= 0.9) chosen = states[2];
+        else if(r > 0.9) chosen = states[3];
+        
+        this.currentWeather = chosen;
+        document.getElementById('sys-weather').innerText = chosen.name;
+        
+        let restrEl = document.getElementById('sys-restr');
+        restrEl.innerText = chosen.restr;
+        restrEl.style.color = chosen.color;
+        
+        if(chosen.id !== 'CLEAR') this.showToast(`AVERTIZARE: ${chosen.name}. S-au impus restricții B.A.R!`, 'warn');
+    },
+
+    handleRadioQueue: function() {
+        if(this.radioQueue.length > 0 && Math.random() < 0.1) {
+            let msg = this.radioQueue.shift();
+            this.radioMsg(msg.speaker, msg.text);
+        }
+    },
+
+    generateRandomChatter: function() {
+        let active = this.trains.filter(t => t.state === 'MOVING_TO_SIGNAL' || t.state === 'MOVING_TO_STATION');
+        if(active.length < 2) return;
+        
+        let r = Math.random();
+        let t1 = active[Math.floor(Math.random() * active.length)];
+        
+        if(r < 0.3) {
+            this.radioMsg(`Mecanic ${t1.id}`, `Am trecut semaforul, avem liber în față.`);
+        } else if (r < 0.6) {
+            let t2 = active[Math.floor(Math.random() * active.length)];
+            if(t1 !== t2) {
+                this.radioMsg(`Mecanic ${t1.id}`, `Salutări colegului de pe ${t2.id} din mers! Drum bun!`);
+                this.radioQueue.push({ speaker: `Mecanic ${t2.id}`, text: `Recepționat ${t1.id}, toate bune și vouă!` });
+            }
+        } else {
+            this.radioMsg(`Dispecer`, `Atenție mecanici, respectați cu strictețe indicațiile semnalelor BLA pe magistrală.`);
+        }
+    },
+
+    loop: function(timestamp) {
+        let realDt = (timestamp - this.lastTime) / 1000;
+        this.lastTime = timestamp;
+        if(realDt > 0.1) realDt = 0.016; 
+
+        let dtSim = realDt * this.simSpeedMultiplier;
+        
+        this.simTime.setSeconds(this.simTime.getSeconds() + dtSim); 
+        document.getElementById('sys-time').innerText = this.simTime.toLocaleTimeString('ro-RO', {hour:'2-digit', minute:'2-digit'});
+        
+        let hour = this.simTime.getHours();
+        let wrapper = document.getElementById('map-wrapper');
+        if (hour >= 20 || hour < 6) wrapper.classList.add('night-mode');
+        else wrapper.classList.remove('night-mode');
+
+        this.weatherTimer += dtSim;
+        if(this.weatherTimer > 3600) { 
+            this.weatherTimer = 0;
+            this.changeWeather();
+        }
+
+        this.spawnTimer += dtSim;
+        if(this.spawnTimer > 600 && this.trains.length < 30) {
+            this.spawnTimer = 0;
+            this.spawnTrain();
+        }
+
+        this.handleRadioQueue();
+        if(Math.random() < 0.001 * this.simSpeedMultiplier) {
+            this.generateRandomChatter();
+        }
+
+        let stationCounts = {};
+        for(let key in NODES) stationCounts[key] = 0;
+        
+        let moveDt = realDt * (this.simSpeedMultiplier / 10); 
+        let needsTimetableUpdate = false;
+
+        this.trains.forEach(t => {
+            if(t.state === 'CRASHED') {
+                t.breakdownTimer += realDt;
+                if(t.breakdownTimer > 5.0) { t.state = 'DONE'; t.domElement.remove(); needsTimetableUpdate = true;}
+                return;
+            }
+            if(t.state === 'IDLE') {
+                stationCounts[t.currentNode]++;
+                t.currentSpeedKmh = 0;
+                t.domElement.querySelector('.train-speed-tag').style.display = 'none';
+                t.delayMinutes += (dtSim / 60);
+                if(Math.random()<0.01) needsTimetableUpdate = true;
+                
+                // Headlights facing mostly right when idle
+                t.domElement.querySelector('.train-dot').style.transform = `rotate(0deg)`;
+                t.domElement.classList.remove('moving');
+                return;
+            }
+
+            t.domElement.classList.add('moving');
+            let actualSpeed = t.cat.speed * this.currentWeather.speed;
+            t.currentSpeedKmh = Math.round(actualSpeed * 1200 * this.currentWeather.speed); 
+
+            if (t.state === 'MOVING_TO_STATION' && Math.random() < 0.0003 * this.simSpeedMultiplier) { 
+                t.state = 'BROKEN';
+                t.breakdownTimer = 30;
+                this.radioMsg(`Mecanic ${t.id}`, `URGENT: Defecțiune tehnică pe secție. Oprim. Cerem locomotivă de ajutor.`);
+                t.domElement.querySelector('.train-dot').classList.add('broken');
+                needsTimetableUpdate = true;
+            }
+
+            if (t.state === 'BROKEN') {
+                t.currentSpeedKmh = 0;
+                t.delayMinutes += (dtSim / 60);
+                if(Math.random()<0.05) needsTimetableUpdate = true;
+                t.breakdownTimer -= moveDt;
+                if (t.breakdownTimer <= 0) {
+                    t.state = 'MOVING_TO_STATION';
+                    this.radioMsg(`Mecanic ${t.id}`, `Am reușit remedierea, continuăm parcursul.`);
+                    t.domElement.querySelector('.train-dot').classList.remove('broken');
+                    needsTimetableUpdate = true;
+                }
+            }
+
+            if(t.state === 'MOVING_TO_SIGNAL') {
+                t.progress += actualSpeed * moveDt;
+                
+                if(t.progress >= 0.48) {
+                    t.progress = 0.48;
+                    
+                    let edge = EDGES.find(e => (e.from === t.currentNode && e.to === t.targetNode) || (e.to === t.currentNode && e.from === t.targetNode));
+                    let sig = edge.double ? this.signals.find(s => s.from === t.currentNode && s.to === t.targetNode) : this.signals.find(s => s.edgeId === edge.id);
+                    
+                    if(this.autoBLA && sig && sig.state === 'RED') {
+                        sig.state = 'GREEN';
+                        let sigEl = document.getElementById(sig.id);
+                        if(sigEl) { sigEl.classList.remove('red'); sigEl.classList.add('green'); }
+                    }
+
+                    if(sig && sig.state === 'GREEN') {
+                        sig.state = 'RED'; 
+                        let sigEl = document.getElementById(sig.id);
+                        if(sigEl) { sigEl.classList.remove('green'); sigEl.classList.add('red'); }
+                        t.state = 'MOVING_TO_STATION';
+                    } else {
+                        if(t.state !== 'WAITING_SIGNAL_MID') {
+                            t.state = 'WAITING_SIGNAL_MID';
+                            t.currentSpeedKmh = 0;
+                            t.domElement.querySelector('.train-dot').classList.add('waiting');
+                            t.domElement.classList.remove('moving');
+                            this.radioMsg(`Mecanic ${t.id}`, `Am oprit la semafor roșu intermediar. Așteptăm verde.`);
+                            needsTimetableUpdate = true;
+                        }
+                    }
+                }
+            } 
+            else if (t.state === 'WAITING_SIGNAL_MID') {
+                t.currentSpeedKmh = 0;
+                t.delayMinutes += (dtSim / 60);
+                if(Math.random()<0.05) needsTimetableUpdate = true;
+
+                let edge = EDGES.find(e => (e.from === t.currentNode && e.to === t.targetNode) || (e.to === t.currentNode && e.from === t.targetNode));
+                let sig = edge.double ? this.signals.find(s => s.from === t.currentNode && s.to === t.targetNode) : this.signals.find(s => s.edgeId === edge.id);
+                
+                if(this.autoBLA && sig && sig.state === 'RED') {
+                    sig.state = 'GREEN';
+                    let sigEl = document.getElementById(sig.id);
+                    if(sigEl) { sigEl.classList.remove('red'); sigEl.classList.add('green'); }
+                }
+
+                if(sig && sig.state === 'GREEN') {
+                    sig.state = 'RED'; 
+                    let sigEl = document.getElementById(sig.id);
+                    if(sigEl) { sigEl.classList.remove('green'); sigEl.classList.add('red'); }
+                    t.state = 'MOVING_TO_STATION';
+                    t.domElement.querySelector('.train-dot').classList.remove('waiting');
+                    t.domElement.classList.add('moving');
+                    this.radioMsg(`Mecanic ${t.id}`, `Avem semnal liber. Pornim.`);
+                    needsTimetableUpdate = true;
+                }
+            }
+            else if (t.state === 'MOVING_TO_STATION') {
+                t.progress += actualSpeed * moveDt;
+                if(t.progress >= 1.0) {
+                    t.currentNode = t.targetNode;
+                    t.targetNode = null;
+                    t.progress = 0;
+                    
+                    if(t.path && t.path[t.pathIndex + 1] === t.currentNode) {
+                        t.pathIndex++;
+                    }
+
+                    if(t.currentNode === t.destFinal) {
+                        this.radioMsg(`Mecanic ${t.id}`, `Am ajuns la destinația finală ${NODES[t.currentNode].name}.`);
+                        let delayPoints = Math.max(0, 150 - Math.floor(t.delayMinutes));
+                        this.updateScore(delayPoints);
+                        t.state = 'DONE';
+                        t.domElement.remove();
+                        needsTimetableUpdate = true;
+                    } else {
+                        let isSmallStation = !NODES[t.currentNode].hub;
+                        let nextNodeInPath = t.path ? t.path[t.pathIndex + 1] : null;
+
+                        if (t.cat.type === 'ir' && isSmallStation && nextNodeInPath) {
+                            t.targetNode = nextNodeInPath;
+                            t.state = 'MOVING_TO_SIGNAL';
+                            this.radioMsg(`Mecanic ${t.id}`, `Tranzităm în viteză ${NODES[t.currentNode].name}.`);
+                        } else {
+                            t.state = 'IDLE';
+                            t.currentSpeedKmh = 0;
+                            t.domElement.querySelector('.train-dot').classList.add('waiting');
+                            t.domElement.classList.remove('moving');
+                            this.radioMsg(`Mecanic ${t.id}`, `Am oprit în ${NODES[t.currentNode].name}. Așteptăm parcurs.`);
+                            this.updateScore(25);
+                            needsTimetableUpdate = true;
+                        }
+                    }
+                    if(this.selectedNode === t.currentNode) this.updateControlPanel();
+                    this.updateHighlights();
+                }
+            }
+
+            if(t.state === 'MOVING_TO_SIGNAL' || t.state === 'MOVING_TO_STATION' || t.state === 'WAITING_SIGNAL_MID' || t.state === 'BROKEN') {
+                let crash = this.trains.find(other => 
+                    other !== t && (other.state === 'MOVING_TO_SIGNAL' || other.state === 'MOVING_TO_STATION' || other.state === 'WAITING_SIGNAL_MID' || other.state === 'BROKEN') &&
+                    ((other.currentNode === t.currentNode && other.targetNode === t.targetNode) ||
+                     (other.currentNode === t.targetNode && other.targetNode === t.currentNode)) &&
+                     Math.abs(other.progress - t.progress) < 0.02
+                );
+
+                if(crash) {
+                    let edge = EDGES.find(e => (e.from === t.currentNode && e.to === t.targetNode) || (e.to === t.currentNode && e.from === t.targetNode));
+                    let sameDirection = (t.currentNode === crash.currentNode);
+                    
+                    if(!edge.double || sameDirection) {
+                        t.state = 'CRASHED'; crash.state = 'CRASHED';
+                        t.breakdownTimer = 0; crash.breakdownTimer = 0;
+                        t.domElement.querySelector('.train-dot').className = 'train-dot crashed';
+                        crash.domElement.querySelector('.train-dot').className = 'train-dot crashed';
+                        t.domElement.classList.remove('moving');
+                        crash.domElement.classList.remove('moving');
+                        this.showToast(`AVARIE MAJORĂ! Coliziune între ${t.id} și ${crash.id}!`, 'error');
+                        this.radioMsg(`Dispecer`, `!!! MAYDAY! COLIZIUNE PE SECȚIE !!! Toate garniturile OPRIȚI!`);
+                        this.updateScore(-500);
+                        AudioSys.error();
+                        needsTimetableUpdate = true;
+                    }
+                }
+            }
+
+            if(t.state !== 'DONE' && t.state !== 'IDLE' && t.targetNode) {
+                let n1 = NODES[t.currentNode];
+                let n2 = NODES[t.targetNode];
+                let px = n1.x + (n2.x - n1.x) * t.progress;
+                let py = n1.y + (n2.y - n1.y) * t.progress;
+
+                let edge = EDGES.find(e => (e.from === t.currentNode && e.to === t.targetNode) || (e.to === t.currentNode && e.from === t.targetNode));
+                if(edge && edge.double) {
+                    let sig = this.signals.find(s => s.from === t.currentNode && s.to === t.targetNode);
+                    if(sig && sig.offset) { px += sig.offset.ox; py += sig.offset.oy; }
+                }
+                
+                // Rotatie calculata pt a indrepta trenul spre directia de mers (pt faruri)
+                let angle = Math.atan2(n2.y - n1.y, n2.x - n1.x) * 180 / Math.PI;
+                t.domElement.querySelector('.train-dot').style.transform = `rotate(${angle}deg)`;
+                
+                t.domElement.style.left = `${px}px`;
+                t.domElement.style.top = `${py}px`;
+
+                let speedEl = t.domElement.querySelector('.train-speed-tag');
+                if(t.state === 'WAITING_SIGNAL_MID' || t.state === 'BROKEN' || t.state === 'CRASHED') {
+                    speedEl.style.display = 'none';
+                } else {
+                    speedEl.style.display = 'block';
+                    speedEl.innerText = `${t.currentSpeedKmh} km/h`;
+                }
+            }
+        });
+
+        for(let key in NODES) {
+            let badge = document.getElementById(`badge-${key}`);
+            if(badge) {
+                let count = stationCounts[key];
+                if(count > 0) {
+                    badge.innerText = count;
+                    badge.style.opacity = '1';
+                } else {
+                    badge.style.opacity = '0';
+                }
+            }
+        }
+
+        if(needsTimetableUpdate) this.updateTimetable();
+
+        this.trains = this.trains.filter(t => t.state !== 'DONE');
+        this.animReq = requestAnimationFrame((ts) => this.loop(ts));
+    }
+};
+</script>
+</body>
+</html>
