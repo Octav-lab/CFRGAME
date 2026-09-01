@@ -24,12 +24,12 @@
             font-family: 'Courier New', monospace;
         }
         .menu-title { font-size: 48px; font-weight: bold; margin-bottom: 10px; text-shadow: 0 0 15px #0f0; text-align: center; }
-        .menu-subtitle { font-size: 18px; color: #0ff; margin-bottom: 50px; }
+        .menu-subtitle { font-size: 18px; color: #0ff; margin-bottom: 50px; text-align: center; padding: 0 15px; }
         .menu-btn {
             background: rgba(0, 255, 0, 0.1); border: 2px solid #0f0; color: #0f0;
             padding: 15px 40px; font-size: 20px; font-weight: bold; font-family: inherit;
             cursor: pointer; border-radius: 8px; transition: all 0.2s;
-            box-shadow: 0 0 10px rgba(0,255,0,0.2); width: 300px; margin-bottom: 15px;
+            box-shadow: 0 0 10px rgba(0,255,0,0.2); width: 80%; max-width: 300px; margin-bottom: 15px;
         }
         .menu-btn:hover { background: #0f0; color: #000; box-shadow: 0 0 20px #0f0; transform: scale(1.05); }
 
@@ -242,39 +242,55 @@
         .toast.warn { border-left: 5px solid #ffeb3b; }
         @keyframes slideInRight { from { transform: translateX(50px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
 
-        /* RESPONSIVE DESIGN (MOBIL) */
+        /* RESPONSIVE DESIGN (MOBIL) - OPTIMIZAT AICI */
         @media (max-width: 800px) {
-            #radio-panel { display: none; }
-            #timetable-panel { display: none; }
-            .map-zoom-controls { bottom: 45vh; right: 15px; left: auto; }
-            #map-control-panel {
-                top: auto; bottom: 0; right: 0; left: 0; width: auto;
-                border-radius: 15px 15px 0 0; padding: 15px; border-width: 4px 0 0 0;
-                background: rgba(26, 26, 46, 0.98);
+            .menu-title { font-size: 36px; }
+            .menu-subtitle { font-size: 15px; }
+            .sys-info-bar { font-size: 11px; padding: 6px; gap: 8px; justify-content: center; }
+            .speed-select { font-size: 11px; padding: 2px; }
+            
+            #radio-panel { 
+                top: 60px; left: 5%; width: 90%; 
+                background: rgba(10, 30, 10, 0.7); pointer-events: none;
             }
-            #toast-container { bottom: auto; top: 60px; right: 10px; }
+            #radio-log { height: 60px; font-size: 10px; padding: 5px; }
+            
+            #timetable-panel { display: none; }
+            
+            .map-zoom-controls { bottom: 45vh; right: 10px; left: auto; }
+            .map-zoom-controls button { width: 40px; height: 40px; font-size: 22px; }
+            
+            #map-control-panel {
+                top: auto; bottom: 0; right: 0; left: 0; width: 100%; box-sizing: border-box;
+                border-radius: 15px 15px 0 0; padding: 12px; border-width: 3px 0 0 0;
+                background: rgba(26, 26, 46, 0.98); margin: 0;
+            }
+            #map-panel-content { max-height: 35vh; overflow-y: auto; padding-right: 5px; }
+            .train-select-btn { font-size: 12px; padding: 8px; }
+            .route-btn { font-size: 13px; padding: 8px 10px; }
+            
+            #toast-container { bottom: auto; top: 160px; right: 10px; left: 10px; align-items: center; pointer-events: none; }
+            .toast { width: 90%; font-size: 12px; padding: 12px; text-align: center; }
         }
     </style>
 </head>
 <body>
 
-    <!-- MENIU STARTUP -->
     <div id="main-menu">
         <div class="menu-title">CFR SCADA v3.0</div>
         <div class="menu-subtitle">Sistem Integrat de Control și Dispecerat Feroviar</div>
         <button class="menu-btn" onclick="startGame()">▶ ÎNCEPE TURA</button>
-        <div style="margin-top: 30px; font-size: 14px; color: #888; text-align: center; max-width: 600px;">
+        <div style="margin-top: 30px; font-size: 13px; color: #888; text-align: center; max-width: 90%; padding: 0 10px;">
             Atenție: Preluarea turei implică gestionarea traficului pe Magistrala 500 și secțiile adiacente.<br>
             Respectați timpii de mers și indicațiile semnalelor BLA.
         </div>
     </div>
 
     <div class="window">
-        <!-- BARA SUS -->
         <div class="sys-info-bar">
             <div>Timp: <strong id="sys-time">12:00:00</strong></div>
             <div style="display:flex; gap: 5px; align-items: center;">
-                <span>Viteză Simulare:</span>
+                <span>Viteză:</span>
                 <select id="sim-speed-select" class="speed-select" onchange="MapSystem.changeSimSpeed(this.value)">
                     <option value="1">1x (Realist)</option>
                     <option value="10">10x (Echilibrat)</option>
@@ -284,7 +300,7 @@
             <div>Meteo: <strong id="sys-weather" style="color: #ffeb3b;">☀️ Senin</strong></div>
             <div><strong id="sys-restr" style="color: #0f0;">Trafic Deschis (100%)</strong></div>
             <div style="display: flex; align-items: center; gap: 8px;">
-                <span>Sistem BLA:</span>
+                <span>BLA:</span>
                 <button class="control-toggle-btn" id="bla-mode-btn" onclick="MapSystem.toggleAutoBLA()">MANUAL</button>
             </div>
             <div class="score-box">Punctaj: <span id="sys-score">0</span></div>
@@ -293,7 +309,7 @@
         <div id="map-wrapper">
             
             <div id="radio-panel">
-                <div class="radio-header">📻 FRECVENȚĂ DISPECERAT & MECANICI (CH-7)</div>
+                <div class="radio-header">📻 FRECVENȚĂ DISPECERAT (CH-7)</div>
                 <div id="radio-log"></div>
             </div>
 
@@ -307,11 +323,8 @@
                 </div>
             </div>
 
-            <!-- HARTA -->
             <div id="map-content">
-                <!-- Strat pt desenat calea de rulare dinamică -->
                 <svg id="path-layer" width="100%" height="100%" style="position:absolute; top:0; left:0; z-index:0; pointer-events:none;"></svg>
-                <!-- Linii fizice -->
                 <svg id="map-svg" width="100%" height="100%" style="position:absolute; top:0; left:0; z-index:1; pointer-events:none;"></svg>
                 <div id="map-elements" style="position:absolute; top:0; left:0; width:100%; height:100%;"></div>
             </div>
@@ -323,7 +336,6 @@
             
             <div id="toast-container"></div>
 
-            <!-- PANOU DISPECER -->
             <div id="map-control-panel">
                 <div style="font-weight: bold; color: #0f0; border-bottom: 2px solid #0f0; padding-bottom: 8px; margin-bottom: 10px; font-size:16px; display: flex; justify-content: space-between; align-items: center;">
                     <span>Panou Dispecer Gări</span>
