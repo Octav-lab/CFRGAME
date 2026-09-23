@@ -138,6 +138,7 @@
             border: 2px solid #000; border-radius: 3px; box-shadow: 0 2px 5px rgba(0,0,0,0.8);
             transition: box-shadow 0.2s; position: relative;
         }
+        .train-dot.ic { background: #9c27b0; width: 32px; height: 14px; }
         .train-dot.ir { background: #0055ff; width: 28px; height: 14px; }
         .train-dot.r { background: #ff5500; width: 22px; height: 14px; }
         .train-dot.marfa { background: #00aa00; width: 45px; height: 14px; }
@@ -308,7 +309,7 @@
         #pause-banner.show { display: block; }
         @keyframes pauseBannerBlink { 50% { opacity: 0.6; } }
 
-        /* RESPONSIVE DESIGN (MOBIL) - OPTIMIZAT AICI */
+        /* RESPONSIVE DESIGN (MOBIL) */
         @media (max-width: 800px) {
             .menu-title { font-size: 36px; }
             .menu-subtitle { font-size: 15px; }
@@ -365,9 +366,9 @@
             <div style="display:flex; gap: 5px; align-items: center;">
                 <span>Viteză:</span>
                 <select id="sim-speed-select" class="speed-select" onchange="MapSystem.changeSimSpeed(this.value)">
-                    <option value="1">1x (Realist)</option>
+                    <option value="1" selected>1x (Realist)</option>
                     <option value="10">10x (Echilibrat)</option>
-                    <option value="60" selected>60x (Rapid)</option>
+                    <option value="60">60x (Rapid)</option>
                 </select>
             </div>
             <div>Meteo: <strong id="sys-weather" style="color: #ffeb3b;">☀️ Senin</strong></div>
@@ -385,7 +386,6 @@
             <div class="score-box" style="color:#ffeb3b; border-color:#ffeb3b;" title="Cel mai bun streak de reparații">🔥 <span id="sys-best-streak">0</span></div>
             <div class="score-box">Punctaj: <span id="sys-score">0</span></div>
         </div>
-
 
         <div id="map-wrapper">
             
@@ -431,7 +431,7 @@
         </div>
     </div>
 
-    <!-- BANNER DE PAUZA (simularea e oprita cat timp e activ minigame-ul) -->
+    <!-- BANNER DE PAUZA -->
     <div id="pause-banner">⏸ SIMULARE ÎN PAUZĂ — repari defecțiunea</div>
 
     <!-- MINIGAME DE REPARAȚIE -->
@@ -585,10 +585,12 @@ const EDGES = [
     { id: 'L10', from: 'PNT', to: 'BCZ', double: false }
 ];
 
+// Actualizat cu ierarhia solicitata: IC, IR, R, si Marfa
 const TRAIN_CATEGORIES = [
-    { type: 'ir', prefix: 'IR', speed: 0.08, class: 'ir', desc: 'InterRegio (Fără oprire halte)' },
+    { type: 'ic', prefix: 'IC', speed: 0.12, class: 'ic', desc: 'InterCity (Cele mai rapide)' },
+    { type: 'ir', prefix: 'IR', speed: 0.08, class: 'ir', desc: 'InterRegio (Rapide)' },
     { type: 'r', prefix: 'R', speed: 0.05, class: 'r', desc: 'Regio (Oprește peste tot)' },
-    { type: 'marfa', prefix: 'M', speed: 0.035, class: 'marfa', desc: 'Marfar (Oprește peste tot)' }
+    { type: 'marfa', prefix: 'M', speed: 0.035, class: 'marfa', desc: 'Marfar (Lent)' }
 ];
 
 /* ==========================================
@@ -601,7 +603,7 @@ const MapSystem = {
     selectedTrainId: null,
     score: 0,
     autoBLA: false, 
-    simSpeedMultiplier: 60, 
+    simSpeedMultiplier: 1, // Start pe 1x (Realist)
     
     lastTime: performance.now(),
     spawnTimer: 0,
@@ -919,7 +921,6 @@ const MapSystem = {
         });
         pathHtml += `" fill="none" stroke="#00ffff" stroke-width="4" stroke-dasharray="10,10" style="opacity:0.6; animation: dash 20s linear infinite;"/>`;
         
-        // Add keyframes for dash animation in a style tag just for the path
         pathHtml += `<style>@keyframes dash { to { stroke-dashoffset: -1000; } }</style>`;
         
         layer.innerHTML = pathHtml;
@@ -1159,7 +1160,6 @@ const MapSystem = {
         if(bdEl) bdEl.innerText = this.breakdownsCount;
         train.state = 'BROKEN';
         train.breakdownTimer = 30;
-        // punctul de referinta pt notificarea de la gara e cea mai apropiata statie (nodul din care a plecat)
         train.breakdownNode = train.currentNode;
         this.radioMsg(`Mecanic ${train.id}`, `URGENT: Defecțiune tehnică pe secție. Oprim. Cerem locomotivă de ajutor.`);
         train.domElement.querySelector('.train-dot').classList.add('broken');
@@ -1178,7 +1178,6 @@ const MapSystem = {
             badge.innerText = '⚠';
             badge.style.opacity = '1';
         } else {
-            // reverifica daca mai e vreun tren defect langa aceeasi statie inainte de a ascunde alerta
             let stillBroken = this.trains.some(t => t.state === 'BROKEN' && t.breakdownNode === nodeId);
             if(!stillBroken) {
                 badge.classList.remove('broken-alert');
@@ -1196,16 +1195,13 @@ const MapSystem = {
         let t = this.trains.find(tr => tr.id === trainId);
         if(!t || t.state !== 'BROKEN') { this.openNextMinigame(); return; }
 
-        // --- PAUZEAZA SIMULAREA DIN FUNDAL ---
         this.minigame.active = true;
         this.minigame.trainId = trainId;
         this.minigame.progress = 0;
         this.minigame.playerIndex = 0;
         this.minigame.showingSequence = true;
 
-        // dificultate: secventa creste cu numarul de reparatii reusite (min 4, max 7)
         let seqLen = Math.min(7, 4 + Math.floor(this.minigame.fixedCount / 2));
-        // alege 4 scule random din pool pt grila
         let pool = [...this.TOOL_POOL].sort(() => Math.random() - 0.5).slice(0, 4);
         this.minigame.iconSet = pool;
         this.minigame.sequence = [];
@@ -1227,7 +1223,6 @@ const MapSystem = {
         document.getElementById('mg-best-streak').innerText = this.minigame.bestStreak;
         document.getElementById('minigame-overlay').classList.add('show');
 
-        // deseneaza grila de scule (butoanele pe care apasa jucatorul)
         let grid = document.getElementById('minigame-toolgrid');
         grid.innerHTML = '';
         pool.forEach(icon => {
@@ -1238,7 +1233,6 @@ const MapSystem = {
             grid.appendChild(btn);
         });
 
-        // deseneaza sloturile secventei (initial goale, se aprind pe rand)
         let seqDisplay = document.getElementById('minigame-sequence-display');
         seqDisplay.innerHTML = '';
         this.minigame.sequence.forEach(() => {
@@ -1339,13 +1333,11 @@ const MapSystem = {
                 this.minigame.fixedCount++;
                 this.minigame.streak++;
                 if(this.minigame.streak > this.minigame.bestStreak) this.minigame.bestStreak = this.minigame.streak;
-                // bonus de scor care creste cu streak-ul curent (recompenseaza consistenta)
                 let streakBonus = Math.min(120, this.minigame.streak * 15);
                 this.radioMsg(`Mecanic ${t.id}`, `Reparație finalizată la fața locului! Continuăm parcursul.`);
                 this.showToast(`✔ ${t.id} reparat! +${60 + streakBonus}p (streak x${this.minigame.streak})`, 'success');
                 this.updateScore(60 + streakBonus);
             } else {
-                // timp expirat fara reparatie completa: se reduce timpul de asteptare proportional cu progresul facut
                 this.minigame.failCount++;
                 this.minigame.streak = 0;
                 let reduction = (this.minigame.progress / 100) * t.breakdownTimer;
@@ -1358,14 +1350,11 @@ const MapSystem = {
 
         this.minigame.active = false;
         this.minigame.trainId = null;
-        // reseteaza timpul de referinta al buclei principale ca sa nu sara simularea inainte cu tot timpul cat a fost pauza
         this.lastTime = performance.now();
-        // porneste urmatorul minigame din coada, daca exista
         setTimeout(() => this.openNextMinigame(), 400);
     },
 
     loop: function(timestamp) {
-        // Cat timp minigame-ul de reparatie e activ, simularea (trenuri, timp, meteo, radio) sta pe loc
         if(this.minigame.active) {
             this.lastTime = timestamp;
             this.animReq = requestAnimationFrame((ts) => this.loop(ts));
@@ -1422,7 +1411,6 @@ const MapSystem = {
                 t.delayMinutes += (dtSim / 60);
                 if(Math.random()<0.01) needsTimetableUpdate = true;
                 
-                // Headlights facing mostly right when idle
                 t.domElement.querySelector('.train-dot').style.transform = `rotate(0deg)`;
                 t.domElement.classList.remove('moving');
                 return;
@@ -1432,7 +1420,8 @@ const MapSystem = {
             let actualSpeed = t.cat.speed * this.currentWeather.speed;
             t.currentSpeedKmh = Math.round(actualSpeed * 1200 * this.currentWeather.speed); 
 
-            if (t.state === 'MOVING_TO_STATION' && Math.random() < 0.0003 * this.simSpeedMultiplier) { 
+            // Defecțiuni ocazionale și mult mai random (foarte rare comparativ cu înainte)
+            if (t.state === 'MOVING_TO_STATION' && Math.random() < 0.000008 * this.simSpeedMultiplier) { 
                 this.triggerBreakdown(t);
                 needsTimetableUpdate = true;
             }
@@ -1533,7 +1522,8 @@ const MapSystem = {
                         let isSmallStation = !NODES[t.currentNode].hub;
                         let nextNodeInPath = t.path ? t.path[t.pathIndex + 1] : null;
 
-                        if (t.cat.type === 'ir' && isSmallStation && nextNodeInPath) {
+                        // IC-urile și IR-urile trec în viteză prin stațiile mici (fără oprire)
+                        if ((t.cat.type === 'ir' || t.cat.type === 'ic') && isSmallStation && nextNodeInPath) {
                             t.targetNode = nextNodeInPath;
                             t.state = 'MOVING_TO_SIGNAL';
                             this.radioMsg(`Mecanic ${t.id}`, `Tranzităm în viteză ${NODES[t.currentNode].name}.`);
@@ -1592,7 +1582,6 @@ const MapSystem = {
                     if(sig && sig.offset) { px += sig.offset.ox; py += sig.offset.oy; }
                 }
                 
-                // Rotatie calculata pt a indrepta trenul spre directia de mers (pt faruri)
                 let angle = Math.atan2(n2.y - n1.y, n2.x - n1.x) * 180 / Math.PI;
                 t.domElement.querySelector('.train-dot').style.transform = `rotate(${angle}deg)`;
                 
@@ -1615,7 +1604,6 @@ const MapSystem = {
                 let count = stationCounts[key];
                 let isBrokenAlert = badge.classList.contains('broken-alert');
                 if(isBrokenAlert) {
-                    // alerta de defectiune are prioritate vizuala fata de numarul normal de trenuri garate
                     continue;
                 }
                 if(count > 0) {
