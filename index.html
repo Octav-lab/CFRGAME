@@ -816,15 +816,38 @@ const MapSystem = {
             let dx = n2.x - n1.x; let dy = n2.y - n1.y;
             let dist = Math.sqrt(dx*dx + dy*dy);
             let nx = -dy / dist; let ny = dx / dist; 
-            let offsetAmt = 16.0;
+            let offsetAmt = 16.0; // Distance from center to each track
             
             if(edge.double) {
                 let ox = nx * offsetAmt; let oy = ny * offsetAmt;
+                
+                // Track 1 (from -> to)
                 htmlSvg += `<line x1="${n1.x+ox}" y1="${n1.y+oy}" x2="${n2.x+ox}" y2="${n2.y+oy}" stroke="${colorDouble}" stroke-width="8"/>`;
+                // Track 2 (to -> from)
                 htmlSvg += `<line x1="${n1.x-ox}" y1="${n1.y-oy}" x2="${n2.x-ox}" y2="${n2.y-oy}" stroke="${colorDouble}" stroke-width="8"/>`;
                 
-                this.createSignal({ id: `sig_${edge.from}_${edge.to}`, from: edge.from, to: edge.to, x: n1.x + (dx*0.5) + ox, y: n1.y + (dy*0.5) + oy, isDouble: true }); 
-                this.createSignal({ id: `sig_${edge.to}_${edge.from}`, from: edge.to, to: edge.from, x: n1.x + (dx*0.5) - ox, y: n1.y + (dy*0.5) - oy, isDouble: true }); 
+                // Signals placed exactly on the track line
+                // Signal for track 1 (going from -> to), placed roughly in the middle
+                this.createSignal({ 
+                    id: `sig_${edge.from}_${edge.to}`, 
+                    from: edge.from, 
+                    to: edge.to, 
+                    x: n1.x + (dx*0.5) + ox, 
+                    y: n1.y + (dy*0.5) + oy, 
+                    isDouble: true,
+                    offset: { ox: ox, oy: oy }
+                }); 
+                
+                // Signal for track 2 (going to -> from)
+                this.createSignal({ 
+                    id: `sig_${edge.to}_${edge.from}`, 
+                    from: edge.to, 
+                    to: edge.from, 
+                    x: n1.x + (dx*0.5) - ox, 
+                    y: n1.y + (dy*0.5) - oy, 
+                    isDouble: true,
+                    offset: { ox: -ox, oy: -oy }
+                }); 
                 
             } else {
                 htmlSvg += `<line x1="${n1.x}" y1="${n1.y}" x2="${n2.x}" y2="${n2.y}" stroke="${colorSingle}" stroke-width="8"/>`;
@@ -1571,8 +1594,21 @@ const MapSystem = {
 
                 let edge = EDGES.find(e => (e.from === t.currentNode && e.to === t.targetNode) || (e.to === t.currentNode && e.from === t.targetNode));
                 if(edge && edge.double) {
-                    let sig = this.signals.find(s => s.from === t.currentNode && s.to === t.targetNode);
-                    if(sig && sig.offset) { px += sig.offset.ox; py += sig.offset.oy; }
+                    // Determine which direction the train is going to apply the correct offset
+                    let dx = n2.x - n1.x; let dy = n2.y - n1.y;
+                    let dist = Math.sqrt(dx*dx + dy*dy);
+                    let nx = -dy / dist; let ny = dx / dist;
+                    let offsetAmt = 16.0;
+                    
+                    // If going from -> to in the edge definition, offset is (nx, ny) * amt
+                    // If going to -> from in the edge definition, offset is (-nx, -ny) * amt
+                    if(edge.from === t.currentNode) {
+                         px += nx * offsetAmt;
+                         py += ny * offsetAmt;
+                    } else {
+                         px -= nx * offsetAmt;
+                         py -= ny * offsetAmt;
+                    }
                 }
                 
                 let angle = Math.atan2(n2.y - n1.y, n2.x - n1.x) * 180 / Math.PI;
