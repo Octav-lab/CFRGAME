@@ -98,12 +98,26 @@
         }
 
         .station-badge {
-            position: absolute; width: 22px; height: 22px;
-            background: #FF0000; color: #FFF; font-size: 14px; font-weight: bold;
+            position: absolute; width: 32px; height: 32px;
+            background: #FF0000; color: #FFF; font-size: 18px; font-weight: bold;
             border-radius: 50%; display: flex; justify-content: center; align-items: center;
-            transform: translate(8px, -22px); z-index: 7; border: 2px solid #FFF;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.8); pointer-events: none; opacity: 0;
-            transition: opacity 0.3s;
+            transform: translate(10px, -30px); z-index: 7; border: 3px solid #FFF;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.9); pointer-events: none; opacity: 0;
+            transition: opacity 0.3s, width 0.2s, height 0.2s, transform 0.2s;
+        }
+
+        /* Notificare MARE si pulsanta pentru statia unde s-a defectat un tren */
+        .station-badge.broken-alert {
+            width: 58px; height: 58px; font-size: 32px;
+            background: #ff2200; border: 4px solid #ffeb3b;
+            transform: translate(2px, -46px);
+            box-shadow: 0 0 35px #ff2200, 0 0 14px #ffeb3b inset;
+            animation: brokenBadgePulse 0.5s infinite;
+            z-index: 9;
+        }
+        @keyframes brokenBadgePulse {
+            0%, 100% { transform: translate(2px, -46px) scale(1); }
+            50% { transform: translate(2px, -46px) scale(1.3); }
         }
 
         .map-signal {
@@ -228,19 +242,71 @@
 
         /* Toasts (Notificari elegante jos dreapta) */
         #toast-container {
-            position: absolute; bottom: 20px; right: 20px;
-            display: flex; flex-direction: column; gap: 10px; z-index: 10000; pointer-events: none;
+            position: absolute; bottom: 15px; right: 15px;
+            display: flex; flex-direction: column; gap: 6px; z-index: 10000; pointer-events: none;
+            align-items: flex-end;
         }
         .toast {
             background: rgba(20, 20, 30, 0.95); border: 1px solid #444; color: #eee;
-            padding: 15px 20px; border-radius: 8px; font-family: 'Courier New', monospace; font-size: 14px;
-            box-shadow: 0 5px 15px rgba(0,0,0,0.8); animation: slideInRight 0.3s forwards; max-width: 380px;
-            line-height: 1.4; pointer-events: auto;
+            padding: 8px 12px; border-radius: 6px; font-family: 'Courier New', monospace; font-size: 11px;
+            box-shadow: 0 3px 10px rgba(0,0,0,0.8); animation: slideInRight 0.25s forwards; max-width: 240px;
+            line-height: 1.3; pointer-events: auto;
         }
-        .toast.success { border-left: 5px solid #0f0; }
-        .toast.error { border-left: 5px solid #f00; color: #ff5555; font-weight: bold; }
-        .toast.warn { border-left: 5px solid #ffeb3b; }
-        @keyframes slideInRight { from { transform: translateX(50px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+        .toast.success { border-left: 4px solid #0f0; }
+        .toast.error { border-left: 4px solid #f00; color: #ff5555; font-weight: bold; }
+        .toast.warn { border-left: 4px solid #ffeb3b; }
+        @keyframes slideInRight { from { transform: translateX(30px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+
+        /* --- BREAKDOWN MINIGAME MODAL --- */
+        #minigame-overlay {
+            position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+            background: rgba(0,0,0,0.85); z-index: 200000;
+            display: none; justify-content: center; align-items: center;
+            font-family: 'Courier New', monospace;
+        }
+        #minigame-overlay.show { display: flex; }
+        #minigame-box {
+            background: #14181c; border: 3px solid #ff2200; border-radius: 10px;
+            width: 92%; max-width: 420px; padding: 20px; color: #fff;
+            box-shadow: 0 0 40px #ff2200; text-align: center;
+        }
+        #minigame-box h2 { color: #ff5555; margin: 0 0 5px 0; font-size: 20px; text-shadow: 0 0 8px #ff2200; }
+        #minigame-box .mg-sub { color: #aaa; font-size: 13px; margin-bottom: 15px; }
+        #minigame-sequence-display {
+            display: flex; justify-content: center; gap: 8px; margin-bottom: 14px; min-height: 36px; flex-wrap: wrap;
+        }
+        .mg-seq-icon {
+            width: 30px; height: 30px; display: flex; justify-content: center; align-items: center;
+            font-size: 18px; background: #222; border: 2px solid #444; border-radius: 6px; opacity: 0.35;
+        }
+        .mg-seq-icon.lit { opacity: 1; border-color: #ffeb3b; box-shadow: 0 0 10px #ffeb3b; background: #332b00; }
+        #minigame-toolgrid {
+            display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 15px;
+        }
+        .mg-tool-btn {
+            background: #1e1e28; border: 2px solid #555; border-radius: 8px; color: #fff;
+            font-size: 26px; padding: 14px 0; cursor: pointer; transition: all 0.15s;
+        }
+        .mg-tool-btn:active { transform: scale(0.92); }
+        .mg-tool-btn.correct { background: #0a5a0a; border-color: #0f0; box-shadow: 0 0 12px #0f0; }
+        .mg-tool-btn.wrong { background: #5a0a0a; border-color: #f00; box-shadow: 0 0 12px #f00; }
+        .mg-tool-btn.locked { opacity: 0.4; pointer-events: none; }
+        #minigame-progress-wrap { width: 100%; height: 18px; background: #222; border: 1px solid #555; border-radius: 9px; margin: 12px 0; overflow: hidden; }
+        #minigame-progress-bar { height: 100%; width: 0%; background: linear-gradient(90deg, #0f0, #0ff); transition: width 0.15s; }
+        #minigame-status { font-size: 13px; color: #ffeb3b; min-height: 18px; margin-top: 5px; }
+        #minigame-timer-wrap { width: 100%; height: 8px; background: #222; border: 1px solid #444; border-radius: 4px; margin-bottom: 10px; overflow: hidden; }
+        #minigame-timer-bar { height: 100%; width: 100%; background: #ffeb3b; transition: width 0.1s linear, background 0.3s; }
+        #minigame-stats { font-size: 11px; color: #666; margin-top: 12px; border-top: 1px solid #333; padding-top: 8px; }
+        #pause-banner {
+            position: fixed; top: 12px; left: 50%; transform: translateX(-50%);
+            background: rgba(255,34,0,0.95); color: #fff; font-family: 'Courier New', monospace;
+            font-weight: bold; font-size: 15px; padding: 8px 20px; border-radius: 6px;
+            border: 2px solid #ffeb3b; box-shadow: 0 0 20px rgba(255,34,0,0.7);
+            z-index: 190000; display: none; letter-spacing: 1px;
+            animation: pauseBannerBlink 1s infinite;
+        }
+        #pause-banner.show { display: block; }
+        @keyframes pauseBannerBlink { 50% { opacity: 0.6; } }
 
         /* RESPONSIVE DESIGN (MOBIL) - OPTIMIZAT AICI */
         @media (max-width: 800px) {
@@ -269,8 +335,15 @@
             .train-select-btn { font-size: 12px; padding: 8px; }
             .route-btn { font-size: 13px; padding: 8px 10px; }
             
-            #toast-container { bottom: auto; top: 160px; right: 10px; left: 10px; align-items: center; pointer-events: none; }
-            .toast { width: 90%; font-size: 12px; padding: 12px; text-align: center; }
+            #toast-container { bottom: auto; top: 160px; right: 8px; left: 8px; align-items: center; pointer-events: none; }
+            .toast { width: 85%; font-size: 10px; padding: 8px; text-align: center; }
+
+            .station-badge { width: 26px; height: 26px; font-size: 15px; transform: translate(8px, -24px); }
+            .station-badge.broken-alert { width: 46px; height: 46px; font-size: 24px; transform: translate(2px, -36px); }
+            @keyframes brokenBadgePulse {
+                0%, 100% { transform: translate(2px, -36px) scale(1); }
+                50% { transform: translate(2px, -36px) scale(1.25); }
+            }
         }
     </style>
 </head>
@@ -303,8 +376,16 @@
                 <span>BLA:</span>
                 <button class="control-toggle-btn" id="bla-mode-btn" onclick="MapSystem.toggleAutoBLA()">MANUAL</button>
             </div>
+            <div style="display: flex; align-items: center; gap: 8px;">
+                <span>Sunet:</span>
+                <button class="control-toggle-btn auto" id="mute-btn" onclick="MapSystem.toggleMute()">🔊 ON</button>
+            </div>
+            <div class="score-box" title="Trenuri ajunse la destinație">✔ <span id="sys-completed">0</span></div>
+            <div class="score-box" style="color:#ff5555; border-color:#ff5555;" title="Defecțiuni totale">⚠ <span id="sys-breakdowns">0</span></div>
+            <div class="score-box" style="color:#ffeb3b; border-color:#ffeb3b;" title="Cel mai bun streak de reparații">🔥 <span id="sys-best-streak">0</span></div>
             <div class="score-box">Punctaj: <span id="sys-score">0</span></div>
         </div>
+
 
         <div id="map-wrapper">
             
@@ -350,6 +431,23 @@
         </div>
     </div>
 
+    <!-- BANNER DE PAUZA (simularea e oprita cat timp e activ minigame-ul) -->
+    <div id="pause-banner">⏸ SIMULARE ÎN PAUZĂ — repari defecțiunea</div>
+
+    <!-- MINIGAME DE REPARAȚIE -->
+    <div id="minigame-overlay">
+        <div id="minigame-box">
+            <h2>⚠ DEFECȚIUNE TEHNICĂ ⚠</h2>
+            <div class="mg-sub" id="minigame-train-info">Trenul XXX este defect pe secție.</div>
+            <div id="minigame-timer-wrap"><div id="minigame-timer-bar"></div></div>
+            <div id="minigame-sequence-display"></div>
+            <div id="minigame-toolgrid"></div>
+            <div id="minigame-progress-wrap"><div id="minigame-progress-bar"></div></div>
+            <div id="minigame-status">Urmărește ordinea sculelor, apoi repet-o!</div>
+            <div id="minigame-stats">Reparate: <strong id="mg-fixed-count">0</strong> | Ratate: <strong id="mg-fail-count">0</strong> | 🔥 Streak: <strong id="mg-streak">0</strong> (record: <strong id="mg-best-streak">0</strong>)</div>
+        </div>
+    </div>
+
 <script>
 // --- UI Functions ---
 function startGame() {
@@ -367,13 +465,14 @@ function toggleDispatcherPanel() {
  * ========================================== */
 const AudioSys = {
     ctx: null,
+    muted: false,
     init: function() {
         if (!this.ctx) {
             this.ctx = new (window.AudioContext || window.webkitAudioContext)();
         }
     },
     playTone: function(freq, type, duration, vol=0.1) {
-        if (!this.ctx) return;
+        if (!this.ctx || this.muted) return;
         try {
             let osc = this.ctx.createOscillator();
             let gain = this.ctx.createGain();
@@ -388,7 +487,9 @@ const AudioSys = {
     radioBeep: function() { this.playTone(900, 'square', 0.1, 0.05); setTimeout(()=>this.playTone(1200, 'square', 0.15, 0.05), 100); },
     dispatch: function() { this.playTone(600, 'triangle', 0.2, 0.1); },
     error: function() { this.playTone(200, 'sawtooth', 0.5, 0.2); setTimeout(()=>this.playTone(150, 'sawtooth', 0.5, 0.2), 200); },
-    success: function() { this.playTone(400, 'sine', 0.2, 0.1); setTimeout(()=>this.playTone(600, 'sine', 0.2, 0.1), 200); setTimeout(()=>this.playTone(800, 'sine', 0.4, 0.1), 400); }
+    success: function() { this.playTone(400, 'sine', 0.2, 0.1); setTimeout(()=>this.playTone(600, 'sine', 0.2, 0.1), 200); setTimeout(()=>this.playTone(800, 'sine', 0.4, 0.1), 400); },
+    hit: function() { this.playTone(500, 'square', 0.08, 0.08); },
+    miss: function() { this.playTone(120, 'sawtooth', 0.15, 0.12); }
 };
 
 document.body.addEventListener('touchstart', () => AudioSys.init(), {once:true});
@@ -519,6 +620,27 @@ const MapSystem = {
     
     radioQueue: [],
 
+    // --- MINIGAME STATE (joc de memorie: reproduce secventa de scule) ---
+    TOOL_POOL: ['🔧','⚙️','🔩','⚡','🪛','🔌','🛠️','🔦'],
+    minigame: {
+        active: false,
+        trainId: null,
+        progress: 0,
+        loopId: null,
+        timeLeft: 15,
+        timeMax: 15,
+        fixedCount: 0,
+        failCount: 0,
+        streak: 0,
+        bestStreak: 0,
+        sequence: [],
+        iconSet: [],
+        playerIndex: 0,
+        showingSequence: true
+    },
+    breakdownQueue: [],
+    lastLoopTimeBeforePause: null,
+
     init: function() {
         this.simTime.setHours(19, 58, 0); // Aproape de noapte pt a vedea efectul de faruri
         this.updateTransform();
@@ -563,6 +685,19 @@ const MapSystem = {
             }
         }
         return [start, end]; 
+    },
+
+    toggleMute: function() {
+        AudioSys.muted = !AudioSys.muted;
+        let btn = document.getElementById('mute-btn');
+        if(AudioSys.muted) {
+            btn.innerText = "🔇 OFF";
+            btn.classList.remove('auto');
+        } else {
+            btn.innerText = "🔊 ON";
+            btn.classList.add('auto');
+            AudioSys.init();
+        }
     },
 
     toggleAutoBLA: function() {
@@ -935,7 +1070,8 @@ const MapSystem = {
             id: id, cat: cat, currentNode: start, targetNode: null, destFinal: dest,
             path: path, pathIndex: 0,
             progress: 0, state: 'IDLE', domElement: null,
-            breakdownTimer: 0, currentSpeedKmh: 0, delayMinutes: 0
+            breakdownTimer: 0, currentSpeedKmh: 0, delayMinutes: 0,
+            breakdownNode: null
         };
         
         let tDiv = document.createElement('div');
@@ -1014,7 +1150,228 @@ const MapSystem = {
         }
     },
 
+    /* ==========================================
+     * BREAKDOWN NOTIFICATION + MINIGAME
+     * ========================================== */
+    triggerBreakdown: function(train) {
+        this.breakdownsCount = (this.breakdownsCount || 0) + 1;
+        let bdEl = document.getElementById('sys-breakdowns');
+        if(bdEl) bdEl.innerText = this.breakdownsCount;
+        train.state = 'BROKEN';
+        train.breakdownTimer = 30;
+        // punctul de referinta pt notificarea de la gara e cea mai apropiata statie (nodul din care a plecat)
+        train.breakdownNode = train.currentNode;
+        this.radioMsg(`Mecanic ${train.id}`, `URGENT: Defecțiune tehnică pe secție. Oprim. Cerem locomotivă de ajutor.`);
+        train.domElement.querySelector('.train-dot').classList.add('broken');
+        this.showBrokenBadge(train.breakdownNode, true);
+        this.showToast(`⚠ DEFECȚIUNE: ${train.id} s-a defectat lângă ${NODES[train.breakdownNode].name}!`, 'error');
+
+        this.breakdownQueue.push(train.id);
+        if(!this.minigame.active) this.openNextMinigame();
+    },
+
+    showBrokenBadge: function(nodeId, on) {
+        let badge = document.getElementById(`badge-${nodeId}`);
+        if(!badge) return;
+        if(on) {
+            badge.classList.add('broken-alert');
+            badge.innerText = '⚠';
+            badge.style.opacity = '1';
+        } else {
+            // reverifica daca mai e vreun tren defect langa aceeasi statie inainte de a ascunde alerta
+            let stillBroken = this.trains.some(t => t.state === 'BROKEN' && t.breakdownNode === nodeId);
+            if(!stillBroken) {
+                badge.classList.remove('broken-alert');
+            }
+        }
+    },
+
+    openNextMinigame: function() {
+        if(this.breakdownQueue.length === 0) {
+            this.minigame.active = false;
+            document.getElementById('pause-banner').classList.remove('show');
+            return;
+        }
+        let trainId = this.breakdownQueue.shift();
+        let t = this.trains.find(tr => tr.id === trainId);
+        if(!t || t.state !== 'BROKEN') { this.openNextMinigame(); return; }
+
+        // --- PAUZEAZA SIMULAREA DIN FUNDAL ---
+        this.minigame.active = true;
+        this.minigame.trainId = trainId;
+        this.minigame.progress = 0;
+        this.minigame.playerIndex = 0;
+        this.minigame.showingSequence = true;
+
+        // dificultate: secventa creste cu numarul de reparatii reusite (min 4, max 7)
+        let seqLen = Math.min(7, 4 + Math.floor(this.minigame.fixedCount / 2));
+        // alege 4 scule random din pool pt grila
+        let pool = [...this.TOOL_POOL].sort(() => Math.random() - 0.5).slice(0, 4);
+        this.minigame.iconSet = pool;
+        this.minigame.sequence = [];
+        for(let i = 0; i < seqLen; i++) this.minigame.sequence.push(pool[Math.floor(Math.random()*pool.length)]);
+
+        this.minigame.timeMax = 12 + seqLen * 2;
+        this.minigame.timeLeft = this.minigame.timeMax;
+
+        document.getElementById('pause-banner').classList.add('show');
+        document.getElementById('minigame-train-info').innerText = `Trenul ${trainId} este defect lângă ${NODES[t.breakdownNode].name}.`;
+        document.getElementById('minigame-progress-bar').style.width = '0%';
+        document.getElementById('minigame-status').innerText = 'Urmărește ordinea sculelor...';
+        document.getElementById('minigame-status').style.color = '#ffeb3b';
+        let timerBar = document.getElementById('minigame-timer-bar');
+        timerBar.style.width = '100%'; timerBar.style.background = '#ffeb3b';
+        document.getElementById('mg-fixed-count').innerText = this.minigame.fixedCount;
+        document.getElementById('mg-fail-count').innerText = this.minigame.failCount;
+        document.getElementById('mg-streak').innerText = this.minigame.streak;
+        document.getElementById('mg-best-streak').innerText = this.minigame.bestStreak;
+        document.getElementById('minigame-overlay').classList.add('show');
+
+        // deseneaza grila de scule (butoanele pe care apasa jucatorul)
+        let grid = document.getElementById('minigame-toolgrid');
+        grid.innerHTML = '';
+        pool.forEach(icon => {
+            let btn = document.createElement('button');
+            btn.className = 'mg-tool-btn locked';
+            btn.innerText = icon;
+            btn.onclick = () => this.minigameTap(icon, btn);
+            grid.appendChild(btn);
+        });
+
+        // deseneaza sloturile secventei (initial goale, se aprind pe rand)
+        let seqDisplay = document.getElementById('minigame-sequence-display');
+        seqDisplay.innerHTML = '';
+        this.minigame.sequence.forEach(() => {
+            let slot = document.createElement('div');
+            slot.className = 'mg-seq-icon';
+            slot.innerText = '?';
+            seqDisplay.appendChild(slot);
+        });
+
+        this.playSequenceDemo(trainId);
+        this.startMinigameTimer(trainId);
+    },
+
+    playSequenceDemo: function(trainId) {
+        let seq = this.minigame.sequence;
+        let slots = document.querySelectorAll('#minigame-sequence-display .mg-seq-icon');
+        let i = 0;
+        const showNext = () => {
+            if(!this.minigame.active || this.minigame.trainId !== trainId) return;
+            if(i > 0) { slots[i-1].classList.remove('lit'); slots[i-1].innerText = seq[i-1]; }
+            if(i >= seq.length) {
+                this.minigame.showingSequence = false;
+                document.querySelectorAll('.mg-tool-btn').forEach(b => b.classList.remove('locked'));
+                document.getElementById('minigame-status').innerText = 'Acum apasă sculele în aceeași ordine!';
+                return;
+            }
+            slots[i].classList.add('lit');
+            AudioSys.playTone(500 + i*40, 'sine', 0.15, 0.08);
+            i++;
+            setTimeout(showNext, 550);
+        };
+        setTimeout(showNext, 500);
+    },
+
+    startMinigameTimer: function(trainId) {
+        let timerBar = document.getElementById('minigame-timer-bar');
+        let last = performance.now();
+        const tick = (ts) => {
+            if(!this.minigame.active || this.minigame.trainId !== trainId) return;
+            let dt = (ts - last) / 1000; last = ts;
+            this.minigame.timeLeft -= dt;
+            let pct = Math.max(0, (this.minigame.timeLeft / this.minigame.timeMax) * 100);
+            timerBar.style.width = pct + '%';
+            timerBar.style.background = pct < 30 ? '#ff3333' : (pct < 60 ? '#ff9800' : '#ffeb3b');
+            if(this.minigame.timeLeft <= 0) {
+                this.finishMinigame(false, true);
+                return;
+            }
+            this.minigame.loopId = requestAnimationFrame(tick);
+        };
+        this.minigame.loopId = requestAnimationFrame(tick);
+    },
+
+    minigameTap: function(icon, btnEl) {
+        if(!this.minigame.active || this.minigame.showingSequence) return;
+        AudioSys.init();
+        let expected = this.minigame.sequence[this.minigame.playerIndex];
+        let statusEl = document.getElementById('minigame-status');
+
+        if(icon === expected) {
+            AudioSys.hit();
+            btnEl.classList.add('correct');
+            setTimeout(() => btnEl.classList.remove('correct'), 200);
+            this.minigame.playerIndex++;
+            this.minigame.progress = Math.round((this.minigame.playerIndex / this.minigame.sequence.length) * 100);
+            document.getElementById('minigame-progress-bar').style.width = this.minigame.progress + '%';
+            statusEl.innerText = `✔ Corect! (${this.minigame.playerIndex}/${this.minigame.sequence.length})`;
+            statusEl.style.color = '#0f0';
+
+            if(this.minigame.playerIndex >= this.minigame.sequence.length) {
+                this.finishMinigame(true, false);
+            }
+        } else {
+            AudioSys.miss();
+            btnEl.classList.add('wrong');
+            setTimeout(() => btnEl.classList.remove('wrong'), 300);
+            this.minigame.streak = 0;
+            document.getElementById('mg-streak').innerText = 0;
+            this.minigame.playerIndex = 0;
+            this.minigame.progress = 0;
+            document.getElementById('minigame-progress-bar').style.width = '0%';
+            this.minigame.timeLeft = Math.max(2, this.minigame.timeLeft - 3);
+            statusEl.innerText = '✘ Greșit! Reia secvența de la început.';
+            statusEl.style.color = '#f55';
+        }
+    },
+
+    finishMinigame: function(success, timedOut) {
+        let trainId = this.minigame.trainId;
+        let t = this.trains.find(tr => tr.id === trainId);
+        cancelAnimationFrame(this.minigame.loopId);
+        document.getElementById('minigame-overlay').classList.remove('show');
+        document.getElementById('pause-banner').classList.remove('show');
+
+        if(t && t.state === 'BROKEN') {
+            if(success) {
+                t.breakdownTimer = 0; // reparat instant
+                this.minigame.fixedCount++;
+                this.minigame.streak++;
+                if(this.minigame.streak > this.minigame.bestStreak) this.minigame.bestStreak = this.minigame.streak;
+                // bonus de scor care creste cu streak-ul curent (recompenseaza consistenta)
+                let streakBonus = Math.min(120, this.minigame.streak * 15);
+                this.radioMsg(`Mecanic ${t.id}`, `Reparație finalizată la fața locului! Continuăm parcursul.`);
+                this.showToast(`✔ ${t.id} reparat! +${60 + streakBonus}p (streak x${this.minigame.streak})`, 'success');
+                this.updateScore(60 + streakBonus);
+            } else {
+                // timp expirat fara reparatie completa: se reduce timpul de asteptare proportional cu progresul facut
+                this.minigame.failCount++;
+                this.minigame.streak = 0;
+                let reduction = (this.minigame.progress / 100) * t.breakdownTimer;
+                t.breakdownTimer = Math.max(3, t.breakdownTimer - reduction);
+                this.radioMsg(`Mecanic ${t.id}`, `Nu am terminat reparația la timp, continuăm manual echipa de intervenție.`);
+                this.showToast(`⏱ Timp expirat la ${t.id} — reparație parțială (${Math.round(this.minigame.progress)}%).`, 'warn');
+            }
+            if(t.breakdownNode) this.showBrokenBadge(t.breakdownNode, false);
+        }
+
+        this.minigame.active = false;
+        this.minigame.trainId = null;
+        // reseteaza timpul de referinta al buclei principale ca sa nu sara simularea inainte cu tot timpul cat a fost pauza
+        this.lastTime = performance.now();
+        // porneste urmatorul minigame din coada, daca exista
+        setTimeout(() => this.openNextMinigame(), 400);
+    },
+
     loop: function(timestamp) {
+        // Cat timp minigame-ul de reparatie e activ, simularea (trenuri, timp, meteo, radio) sta pe loc
+        if(this.minigame.active) {
+            this.lastTime = timestamp;
+            this.animReq = requestAnimationFrame((ts) => this.loop(ts));
+            return;
+        }
+
         let realDt = (timestamp - this.lastTime) / 1000;
         this.lastTime = timestamp;
         if(realDt > 0.1) realDt = 0.016; 
@@ -1076,10 +1433,7 @@ const MapSystem = {
             t.currentSpeedKmh = Math.round(actualSpeed * 1200 * this.currentWeather.speed); 
 
             if (t.state === 'MOVING_TO_STATION' && Math.random() < 0.0003 * this.simSpeedMultiplier) { 
-                t.state = 'BROKEN';
-                t.breakdownTimer = 30;
-                this.radioMsg(`Mecanic ${t.id}`, `URGENT: Defecțiune tehnică pe secție. Oprim. Cerem locomotivă de ajutor.`);
-                t.domElement.querySelector('.train-dot').classList.add('broken');
+                this.triggerBreakdown(t);
                 needsTimetableUpdate = true;
             }
 
@@ -1092,6 +1446,8 @@ const MapSystem = {
                     t.state = 'MOVING_TO_STATION';
                     this.radioMsg(`Mecanic ${t.id}`, `Am reușit remedierea, continuăm parcursul.`);
                     t.domElement.querySelector('.train-dot').classList.remove('broken');
+                    if(t.breakdownNode) this.showBrokenBadge(t.breakdownNode, false);
+                    t.breakdownNode = null;
                     needsTimetableUpdate = true;
                 }
             }
@@ -1167,6 +1523,8 @@ const MapSystem = {
                     if(t.currentNode === t.destFinal) {
                         this.radioMsg(`Mecanic ${t.id}`, `Am ajuns la destinația finală ${NODES[t.currentNode].name}.`);
                         let delayPoints = Math.max(0, 150 - Math.floor(t.delayMinutes));
+                        this.completedCount = (this.completedCount || 0) + 1;
+                        document.getElementById('sys-completed').innerText = this.completedCount;
                         this.updateScore(delayPoints);
                         t.state = 'DONE';
                         t.domElement.remove();
@@ -1255,6 +1613,11 @@ const MapSystem = {
             let badge = document.getElementById(`badge-${key}`);
             if(badge) {
                 let count = stationCounts[key];
+                let isBrokenAlert = badge.classList.contains('broken-alert');
+                if(isBrokenAlert) {
+                    // alerta de defectiune are prioritate vizuala fata de numarul normal de trenuri garate
+                    continue;
+                }
                 if(count > 0) {
                     badge.innerText = count;
                     badge.style.opacity = '1';
