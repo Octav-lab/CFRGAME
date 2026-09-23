@@ -22,6 +22,7 @@
             z-index: 100000; display: flex; flex-direction: column;
             justify-content: center; align-items: center; color: #0f0;
             font-family: 'Courier New', monospace;
+            transition: opacity 1.5s ease-in-out;
         }
         .menu-title { font-size: 48px; font-weight: bold; margin-bottom: 10px; text-shadow: 0 0 15px #0f0; text-align: center; }
         .menu-subtitle { font-size: 18px; color: #0ff; margin-bottom: 50px; text-align: center; padding: 0 15px; }
@@ -48,7 +49,6 @@
         .score-box { background: #1a1a1a; padding: 3px 8px; border: 1px solid #0f0; border-radius: 4px; color: #0ff; font-weight: bold; }
         .control-toggle-btn { background: #222; border: 1px solid #0f0; color: #0f0; padding: 3px 8px; border-radius: 4px; cursor: pointer; font-weight: bold; font-family: 'Courier New', monospace;}
         .control-toggle-btn.auto { background: #0f0; color: #000; }
-        .speed-select { background: #222; color: #0f0; border: 1px solid #0f0; border-radius: 4px; padding: 2px 5px; font-family: monospace; font-weight:bold; cursor: pointer; outline: none; }
 
         /* --- MAP WRAPPER --- */
         #map-wrapper {
@@ -63,6 +63,7 @@
         #map-content {
             position: absolute; width: 10000px; height: 10000px;
             transform-origin: 0 0; top: 0; left: 0;
+            transition: transform 0.1s ease-out;
         }
         
         .map-zoom-controls {
@@ -198,10 +199,12 @@
         }
         .timetable-header { background: #0ff; color: #000; font-weight: bold; padding: 6px 10px; font-size: 12px; border-radius: 4px 4px 0 0; display: flex; justify-content: space-between; }
         #timetable-list { padding: 5px; overflow-y: auto; display: flex; flex-direction: column; gap: 4px; flex-grow: 1; }
-        .tt-row { display: flex; justify-content: space-between; background: #222; padding: 4px 6px; border: 1px solid #444; border-radius: 3px; }
+        .tt-row { display: flex; justify-content: space-between; background: #222; padding: 4px 6px; border: 1px solid #444; border-radius: 3px; cursor: pointer; transition: background 0.2s, border-color 0.2s; }
+        .tt-row:hover { background: #333; border-color: #0ff; }
         .tt-delay { color: #f00; font-weight: bold; }
         .tt-ontime { color: #0f0; }
 
+        /* --- PANOU DISPECER / INSPECTOR --- */
         #map-control-panel {
             position: absolute; top: 15px; right: 15px; width: 340px;
             background: #1a1a2e; border: 2px solid #0f0; padding: 15px; z-index: 45;
@@ -300,11 +303,11 @@
         #pause-banner.show { display: block; }
         @keyframes pauseBannerBlink { 50% { opacity: 0.6; } }
 
+        /* RESPONSIVE DESIGN (MOBIL) */
         @media (max-width: 800px) {
             .menu-title { font-size: 36px; }
             .menu-subtitle { font-size: 15px; }
             .sys-info-bar { font-size: 11px; padding: 6px; gap: 8px; justify-content: center; }
-            .speed-select { font-size: 11px; padding: 2px; }
             
             #radio-panel { 
                 top: 60px; left: 5%; width: 90%; 
@@ -353,15 +356,8 @@
     <div class="window">
         <div class="sys-info-bar">
             <div>Timp: <strong id="sys-time">12:00:00</strong></div>
-            <div style="display:flex; gap: 5px; align-items: center;">
-                <span>Viteză:</span>
-                <select id="sim-speed-select" class="speed-select" onchange="MapSystem.changeSimSpeed(this.value)">
-                    <option value="1" selected>1x (Realist)</option>
-                    <option value="10">10x (Echilibrat)</option>
-                    <option value="60">60x (Rapid)</option>
-                </select>
-            </div>
             <div>Meteo: <strong id="sys-weather" style="color: #ffeb3b;">☀️ Senin</strong></div>
+            <div><strong id="sys-restr" style="color: #0f0;">Trafic Deschis (100%)</strong></div>
             
             <div style="display: flex; align-items: center; gap: 8px;">
                 <span>Avarii:</span>
@@ -399,8 +395,8 @@
             </div>
 
             <div id="map-content">
-                <svg id="path-layer" width="100%" height="100%" style="position:absolute; top:0; left:0; z-index:0; pointer-events:none;"></svg>
-                <svg id="map-svg" width="100%" height="100%" style="position:absolute; top:0; left:0; z-index:1; pointer-events:none;"></svg>
+                <svg id="path-layer" width="100%" height="100%" style="position:absolute; top:0; left:0; z-index:0; pointer-events:none; overflow:visible;"></svg>
+                <svg id="map-svg" width="100%" height="100%" style="position:absolute; top:0; left:0; z-index:1; pointer-events:none; overflow:visible;"></svg>
                 <div id="map-elements" style="position:absolute; top:0; left:0; width:100%; height:100%;"></div>
             </div>
 
@@ -443,9 +439,30 @@
     </div>
 
 <script>
+// --- UI Functions ---
 function startGame() {
-    document.getElementById('main-menu').style.display = 'none';
-    MapSystem.init();
+    AudioSys.init(); 
+    AudioSys.playTone(800, 'square', 0.1);
+    
+    const btn = document.querySelector('.menu-btn');
+    const sub = document.querySelector('.menu-subtitle');
+    const menu = document.getElementById('main-menu');
+    
+    btn.style.display = 'none';
+    sub.innerHTML = "Inițializare module SCADA...<br>Conectare la servere CFR...";
+    
+    setTimeout(() => {
+        AudioSys.playTone(1200, 'square', 0.1);
+        sub.innerHTML = "Sincronizare trafic BLA... OK<br>Preluare control dispecerat... OK";
+        
+        setTimeout(() => {
+            menu.style.opacity = "0";
+            setTimeout(() => {
+                menu.style.display = 'none';
+                MapSystem.init();
+            }, 1500); // Wait for fade out
+        }, 1200);
+    }, 1500);
 }
 
 function toggleDispatcherPanel() {
@@ -527,56 +544,139 @@ const NODES = {
     'FLT': { name: 'Fălticeni', x: 5400, y: 6100, hub: false },
 
     'PNT': { name: 'Piatra Neamț', x: 6100, y: 7300, hub: true },
-    'BCZ': { name: 'Bicaz', x: 5700, y: 7800, hub: false }
+    'BCZ': { name: 'Bicaz', x: 5700, y: 7800, hub: false },
+
+    // --- EXTINDERE SUD (Bucuresti, Constanta) ---
+    'ADJ': { name: 'Adjud (Nod)', x: 6950, y: 8200, hub: true },
+    'TEC': { name: 'Tecuci', x: 7400, y: 8500, hub: false },
+    'FOC': { name: 'Focșani', x: 6900, y: 8900, hub: true },
+    'BUZ': { name: 'Buzău (Nod)', x: 6700, y: 9800, hub: true },
+    'PLO': { name: 'Ploiești Sud', x: 6200, y: 10500, hub: true },
+    'BNO': { name: 'București Nord', x: 6000, y: 11500, hub: true },
+    'FND': { name: 'Fundulea', x: 6800, y: 11500, hub: false },
+    'LEH': { name: 'Lehliu Gară', x: 7300, y: 11550, hub: false },
+    'FET': { name: 'Fetești', x: 8000, y: 11600, hub: true },
+    'CER': { name: 'Cernavodă Pod', x: 8300, y: 11700, hub: false },
+    'MEDJ': { name: 'Medgidia', x: 8800, y: 11800, hub: true },
+    'CTA': { name: 'Constanța', x: 9500, y: 12000, hub: true },
+    'MGA': { name: 'Mangalia', x: 9400, y: 12800, hub: false },
+
+    // --- EXTINDERE CENTRU (Brasov) ---
+    'RAZ': { name: 'Războieni', x: 300, y: 6000, hub: false },
+    'TEI': { name: 'Teiuș (Nod)', x: 500, y: 7000, hub: true },
+    'BLA': { name: 'Blaj', x: 1000, y: 7200, hub: false },
+    'COP': { name: 'Copșa Mică', x: 1500, y: 7300, hub: true },
+    'MED': { name: 'Mediaș', x: 1800, y: 7200, hub: false },
+    'SGH': { name: 'Sighișoara', x: 2500, y: 7000, hub: true },
+    'BVR': { name: 'Brașov (Nod)', x: 4500, y: 9200, hub: true },
+    'PRD': { name: 'Predeal', x: 4800, y: 9800, hub: false },
+    'SIN': { name: 'Sinaia', x: 5000, y: 10100, hub: false },
+    'CPN': { name: 'Câmpina', x: 5500, y: 10400, hub: false },
+    'SBZ': { name: 'Sibiu', x: 2000, y: 8200, hub: true },
+    'FAG': { name: 'Făgăraș', x: 3000, y: 8500, hub: false },
+
+    // --- EXTINDERE VEST (Arad) ---
+    'ALB': { name: 'Alba Iulia', x: 400, y: 7500, hub: false },
+    'VTJ': { name: 'Vințu de Jos', x: 200, y: 7800, hub: true },
+    'SIM': { name: 'Simeria', x: -300, y: 7600, hub: true },
+    'DEV': { name: 'Deva', x: -500, y: 7500, hub: true },
+    'ILR': { name: 'Săvârșin', x: -1200, y: 7000, hub: false },
+    'RDN': { name: 'Radna', x: -1800, y: 6500, hub: false },
+    'ARA': { name: 'Arad (Nod)', x: -2500, y: 6000, hub: true },
+    'CUR': { name: 'Curtici (Frontieră)', x: -2800, y: 5500, hub: true }
 };
 
 const EDGES = [
-    { id: 'M0', from: 'BAC', to: 'ROM', double: true },
-    { id: 'M01', from: 'ROM', to: 'SAB', double: true },
-    { id: 'M02', from: 'SAB', to: 'PAS', double: true },
-    { id: 'M1', from: 'PAS', to: 'DOL', double: true },
-    { id: 'M2a', from: 'DOL', to: 'LIT', double: true },
-    { id: 'M2b', from: 'LIT', to: 'VER', double: true },
-    { id: 'M3', from: 'VER', to: 'SV', double: true },
-    { id: 'M4a', from: 'SV', to: 'SVN', double: true },
-    { id: 'M4b', from: 'SVN', to: 'DAR', double: true },
-    { id: 'M5', from: 'DAR', to: 'DOR', double: true },
-    { id: 'M6', from: 'DOR', to: 'BCT', double: true },
-    { id: 'M7', from: 'BCT', to: 'VIC', double: true },
+    { id: 'M0', from: 'BAC', to: 'ROM', double: true, maxSpeed: 140 },
+    { id: 'M01', from: 'ROM', to: 'SAB', double: true, maxSpeed: 140 },
+    { id: 'M02', from: 'SAB', to: 'PAS', double: true, maxSpeed: 140 },
+    { id: 'M1', from: 'PAS', to: 'DOL', double: true, maxSpeed: 140 },
+    { id: 'M2a', from: 'DOL', to: 'LIT', double: true, maxSpeed: 120 },
+    { id: 'M2b', from: 'LIT', to: 'VER', double: true, maxSpeed: 120 },
+    { id: 'M3', from: 'VER', to: 'SV', double: true, maxSpeed: 120 },
+    { id: 'M4a', from: 'SV', to: 'SVN', double: true, maxSpeed: 100 },
+    { id: 'M4b', from: 'SVN', to: 'DAR', double: true, maxSpeed: 100 },
+    { id: 'M5', from: 'DAR', to: 'DOR', double: true, maxSpeed: 100 },
+    { id: 'M6', from: 'DOR', to: 'BCT', double: true, maxSpeed: 100 },
+    { id: 'M7', from: 'BCT', to: 'VIC', double: true, maxSpeed: 100 },
     
-    { id: 'M8', from: 'PAS', to: 'TFR', double: true },
-    { id: 'M9', from: 'TFR', to: 'LEC', double: true },
-    { id: 'M10', from: 'LEC', to: 'IAS', double: true },
+    { id: 'M8', from: 'PAS', to: 'TFR', double: true, maxSpeed: 120 },
+    { id: 'M9', from: 'TFR', to: 'LEC', double: true, maxSpeed: 100 },
+    { id: 'M10', from: 'LEC', to: 'IAS', double: true, maxSpeed: 100 },
     
-    { id: 'M12', from: 'ILV', to: 'BEC', double: true },
-    { id: 'M13', from: 'BEC', to: 'DEJ', double: true },
-    { id: 'M14', from: 'DEJ', to: 'CJ', double: true },
+    { id: 'M12', from: 'ILV', to: 'BEC', double: true, maxSpeed: 80 },
+    { id: 'M13', from: 'BEC', to: 'DEJ', double: true, maxSpeed: 100 },
+    { id: 'M14', from: 'DEJ', to: 'CJ', double: true, maxSpeed: 120 },
 
-    { id: 'L1', from: 'VER', to: 'BOT', double: false },
-    { id: 'L2', from: 'DOL', to: 'FLT', double: false },
-    { id: 'L3', from: 'SV', to: 'GH', double: false },
-    { id: 'L3a', from: 'GH', to: 'FRN', double: false },
-    { id: 'L3b', from: 'FRN', to: 'VAM', double: false },
-    { id: 'L4', from: 'VAM', to: 'CPL', double: false },
-    { id: 'L4a', from: 'CPL', to: 'SAD', double: false },
-    { id: 'L4b', from: 'SAD', to: 'POJ', double: false },
-    { id: 'L5', from: 'POJ', to: 'VD', double: false },
-    { id: 'L5b', from: 'VD', to: 'FLR', double: false },
-    { id: 'L5c', from: 'FLR', to: 'ILV', double: false },
-    { id: 'L6', from: 'DAR', to: 'CAC', double: false },
-    { id: 'L7', from: 'DOR', to: 'RAD', double: false },
-    { id: 'L8', from: 'RAD', to: 'GAL', double: false },
-    { id: 'L8a', from: 'GAL', to: 'VIJ', double: false },
-    { id: 'L8b', from: 'VIJ', to: 'PUT', double: false },
-    { id: 'L9', from: 'BAC', to: 'PNT', double: false },
-    { id: 'L10', from: 'PNT', to: 'BCZ', double: false }
+    { id: 'L1', from: 'VER', to: 'BOT', double: false, maxSpeed: 80 },
+    { id: 'L2', from: 'DOL', to: 'FLT', double: false, maxSpeed: 50 },
+    { id: 'L3', from: 'SV', to: 'GH', double: false, maxSpeed: 80 },
+    { id: 'L3a', from: 'GH', to: 'FRN', double: false, maxSpeed: 80 },
+    { id: 'L3b', from: 'FRN', to: 'VAM', double: false, maxSpeed: 80 },
+    { id: 'L4', from: 'VAM', to: 'CPL', double: false, maxSpeed: 70 },
+    { id: 'L4a', from: 'CPL', to: 'SAD', double: false, maxSpeed: 70 },
+    { id: 'L4b', from: 'SAD', to: 'POJ', double: false, maxSpeed: 70 },
+    { id: 'L5', from: 'POJ', to: 'VD', double: false, maxSpeed: 70 },
+    { id: 'L5b', from: 'VD', to: 'FLR', double: false, maxSpeed: 60 },
+    { id: 'L5c', from: 'FLR', to: 'ILV', double: false, maxSpeed: 60 },
+    { id: 'L6', from: 'DAR', to: 'CAC', double: false, maxSpeed: 50 },
+    { id: 'L7', from: 'DOR', to: 'RAD', double: false, maxSpeed: 50 },
+    { id: 'L8', from: 'RAD', to: 'GAL', double: false, maxSpeed: 50 },
+    { id: 'L8a', from: 'GAL', to: 'VIJ', double: false, maxSpeed: 50 },
+    { id: 'L8b', from: 'VIJ', to: 'PUT', double: false, maxSpeed: 50 },
+    { id: 'L9', from: 'BAC', to: 'PNT', double: false, maxSpeed: 80 },
+    { id: 'L10', from: 'PNT', to: 'BCZ', double: false, maxSpeed: 50 },
+
+    // Linii noi: M500 (Bacău - București)
+    { id: 'M500a', from: 'BAC', to: 'ADJ', double: true, maxSpeed: 140 },
+    { id: 'M500b', from: 'ADJ', to: 'FOC', double: true, maxSpeed: 140 },
+    { id: 'M500c', from: 'FOC', to: 'BUZ', double: true, maxSpeed: 140 },
+    { id: 'M500d', from: 'BUZ', to: 'PLO', double: true, maxSpeed: 140 },
+    { id: 'M500e', from: 'PLO', to: 'BNO', double: true, maxSpeed: 140 },
+    { id: 'L_ADJ_TEC', from: 'ADJ', to: 'TEC', double: false, maxSpeed: 100 },
+    { id: 'L_TEC_BUZ', from: 'TEC', to: 'BUZ', double: false, maxSpeed: 100 },
+
+    // Linii noi: M800 (București - Constanța)
+    { id: 'M800a', from: 'BNO', to: 'FND', double: true, maxSpeed: 160 },
+    { id: 'M800b', from: 'FND', to: 'LEH', double: true, maxSpeed: 160 },
+    { id: 'M800c', from: 'LEH', to: 'FET', double: true, maxSpeed: 160 },
+    { id: 'M800d', from: 'FET', to: 'CER', double: true, maxSpeed: 160 },
+    { id: 'M800e', from: 'CER', to: 'MEDJ', double: true, maxSpeed: 160 },
+    { id: 'M800f', from: 'MEDJ', to: 'CTA', double: true, maxSpeed: 160 },
+    { id: 'L_CTA_MGA', from: 'CTA', to: 'MGA', double: false, maxSpeed: 80 },
+
+    // Linii noi: M300/M400 (Cluj - Brașov - București)
+    { id: 'M300a', from: 'CJ', to: 'RAZ', double: true, maxSpeed: 120 },
+    { id: 'M300b', from: 'RAZ', to: 'TEI', double: true, maxSpeed: 120 },
+    { id: 'M300c', from: 'TEI', to: 'BLA', double: true, maxSpeed: 120 },
+    { id: 'M300d', from: 'BLA', to: 'COP', double: true, maxSpeed: 120 },
+    { id: 'M300e', from: 'COP', to: 'MED', double: true, maxSpeed: 120 },
+    { id: 'M300f', from: 'MED', to: 'SGH', double: true, maxSpeed: 120 },
+    { id: 'M300g', from: 'SGH', to: 'BVR', double: true, maxSpeed: 120 },
+    { id: 'M300h', from: 'BVR', to: 'PRD', double: true, maxSpeed: 70 },
+    { id: 'M300i', from: 'PRD', to: 'SIN', double: true, maxSpeed: 80 },
+    { id: 'M300j', from: 'SIN', to: 'CPN', double: true, maxSpeed: 90 },
+    { id: 'M300k', from: 'CPN', to: 'PLO', double: true, maxSpeed: 140 },
+    { id: 'L_COP_SBZ', from: 'COP', to: 'SBZ', double: false, maxSpeed: 80 },
+    { id: 'L_SBZ_FAG', from: 'SBZ', to: 'FAG', double: false, maxSpeed: 80 },
+    { id: 'L_FAG_BVR', from: 'FAG', to: 'BVR', double: false, maxSpeed: 80 },
+
+    // Linii noi: M200 (Spre Arad)
+    { id: 'M200a', from: 'TEI', to: 'ALB', double: true, maxSpeed: 100 },
+    { id: 'M200b', from: 'ALB', to: 'VTJ', double: true, maxSpeed: 100 },
+    { id: 'M200c', from: 'VTJ', to: 'SIM', double: true, maxSpeed: 120 },
+    { id: 'M200d', from: 'SIM', to: 'DEV', double: true, maxSpeed: 120 },
+    { id: 'M200e', from: 'DEV', to: 'ILR', double: true, maxSpeed: 120 },
+    { id: 'M200f', from: 'ILR', to: 'RDN', double: true, maxSpeed: 120 },
+    { id: 'M200g', from: 'RDN', to: 'ARA', double: true, maxSpeed: 140 },
+    { id: 'M200h', from: 'ARA', to: 'CUR', double: true, maxSpeed: 140 }
 ];
 
 const TRAIN_CATEGORIES = [
-    { type: 'ic', prefix: 'IC', speed: 0.12, class: 'ic', desc: 'InterCity (Cele mai rapide)' },
-    { type: 'ir', prefix: 'IR', speed: 0.08, class: 'ir', desc: 'InterRegio (Rapide)' },
-    { type: 'r', prefix: 'R', speed: 0.05, class: 'r', desc: 'Regio (Oprește peste tot)' },
-    { type: 'marfa', prefix: 'M', speed: 0.035, class: 'marfa', desc: 'Marfar (Lent)' }
+    { type: 'ic', prefix: 'IC', maxSpeed: 160, class: 'ic', desc: 'InterCity (Cele mai rapide)' },
+    { type: 'ir', prefix: 'IR', maxSpeed: 140, class: 'ir', desc: 'InterRegio (Rapide)' },
+    { type: 'r', prefix: 'R', maxSpeed: 120, class: 'r', desc: 'Regio (Oprește peste tot)' },
+    { type: 'marfa', prefix: 'M', maxSpeed: 80, class: 'marfa', desc: 'Marfar (Lent)' }
 ];
 
 const MapSystem = {
@@ -586,8 +686,8 @@ const MapSystem = {
     selectedTrainId: null,
     score: 0,
     autoBLA: false, 
-    minigamesEnabled: true, // Variabila noua pt toggle
-    simSpeedMultiplier: 1, 
+    minigamesEnabled: true,
+    simSpeedMultiplier: 4, 
     
     lastTime: performance.now(),
     spawnTimer: 0,
@@ -606,7 +706,6 @@ const MapSystem = {
     
     radioQueue: [],
 
-    // Minigame config
     TOOL_POOL: ['🔧','⚙️','🔩','⚡','🪛','🔌','🛠️','🔦'],
     minigame: {
         active: false,
@@ -633,17 +732,12 @@ const MapSystem = {
         this.drawMap();
         this.setupTouchAndMouse();
         
-        let initialSpawns = ['SV', 'PAS', 'CJ', 'VD'];
+        let initialSpawns = ['SV', 'PAS', 'CJ', 'VD', 'BNO', 'CTA', 'BVR', 'ARA'];
         initialSpawns.forEach(loc => this.spawnTrain(null, loc));
         
         this.lastTime = performance.now();
         this.animReq = requestAnimationFrame((ts) => this.loop(ts));
         this.showToast("Sistem BLA Regional conectat.", "success");
-    },
-
-    changeSimSpeed: function(val) {
-        this.simSpeedMultiplier = parseInt(val);
-        this.showToast(`Viteză simulare setată la ${val}x.`, 'info');
     },
 
     getPath: function(start, end) {
@@ -816,18 +910,14 @@ const MapSystem = {
             let dx = n2.x - n1.x; let dy = n2.y - n1.y;
             let dist = Math.sqrt(dx*dx + dy*dy);
             let nx = -dy / dist; let ny = dx / dist; 
-            let offsetAmt = 16.0; // Distance from center to each track
+            let offsetAmt = 16.0; 
             
             if(edge.double) {
                 let ox = nx * offsetAmt; let oy = ny * offsetAmt;
                 
-                // Track 1 (from -> to)
                 htmlSvg += `<line x1="${n1.x+ox}" y1="${n1.y+oy}" x2="${n2.x+ox}" y2="${n2.y+oy}" stroke="${colorDouble}" stroke-width="8"/>`;
-                // Track 2 (to -> from)
                 htmlSvg += `<line x1="${n1.x-ox}" y1="${n1.y-oy}" x2="${n2.x-ox}" y2="${n2.y-oy}" stroke="${colorDouble}" stroke-width="8"/>`;
                 
-                // Signals placed exactly on the track line
-                // Signal for track 1 (going from -> to), placed roughly in the middle
                 this.createSignal({ 
                     id: `sig_${edge.from}_${edge.to}`, 
                     from: edge.from, 
@@ -838,7 +928,6 @@ const MapSystem = {
                     offset: { ox: ox, oy: oy }
                 }); 
                 
-                // Signal for track 2 (going to -> from)
                 this.createSignal({ 
                     id: `sig_${edge.to}_${edge.from}`, 
                     from: edge.to, 
@@ -1045,13 +1134,60 @@ const MapSystem = {
             let locStr = t.state === 'IDLE' ? `Oprit în ${NODES[t.currentNode].name}` : `Spre ${t.targetNode ? NODES[t.targetNode].name : '...'}`;
             if(t.state === 'BROKEN') locStr = `<span style="color:#ffeb3b">DEFECT SECȚIE</span>`;
 
-            html += `<div class="tt-row">
+            html += `<div class="tt-row" onclick="MapSystem.focusTrain('${t.id}')">
                         <div style="flex: 1;"><strong>${t.id}</strong> ➔ ${NODES[t.destFinal].name}</div>
                         <div style="flex: 1; color:#aaa;">${locStr}</div>
                         <div style="width: 50px; text-align:right;">${delayStr}</div>
                      </div>`;
         });
         list.innerHTML = html;
+    },
+
+    focusTrain: function(trainId) {
+        let t = this.trains.find(tr => tr.id === trainId);
+        if (!t) return;
+        
+        AudioSys.playTone(400, 'square', 0.1);
+
+        let px = 0, py = 0;
+        if (t.state === 'IDLE') {
+            px = NODES[t.currentNode].x;
+            py = NODES[t.currentNode].y;
+            this.selectNode(t.currentNode); 
+            this.selectTrainInStation(trainId);
+        } else if (t.targetNode) {
+            let n1 = NODES[t.currentNode];
+            let n2 = NODES[t.targetNode];
+            px = n1.x + (n2.x - n1.x) * t.progress;
+            py = n1.y + (n2.y - n1.y) * t.progress;
+            
+            let edge = EDGES.find(e => (e.from === t.currentNode && e.to === t.targetNode) || (e.to === t.currentNode && e.from === t.targetNode));
+            if(edge && edge.double) {
+                let dx = n2.x - n1.x; let dy = n2.y - n1.y;
+                let dist = Math.sqrt(dx*dx + dy*dy);
+                let ox = (-dy / dist) * 16.0;
+                let oy = (dx / dist) * 16.0;
+                px += ox; py += oy;
+            }
+        } else {
+            px = NODES[t.currentNode].x;
+            py = NODES[t.currentNode].y;
+        }
+
+        let wrapper = document.getElementById('map-wrapper');
+        let w = wrapper.clientWidth;
+        let h = wrapper.clientHeight;
+        
+        this.mapOffsetX = (w / 2) / this.zoom - px;
+        this.mapOffsetY = (h / 2) / this.zoom - py;
+        this.updateTransform();
+        
+        if (t.domElement) {
+            t.domElement.classList.add('highlighted');
+            setTimeout(() => {
+                 if(this.selectedTrainId !== t.id) t.domElement.classList.remove('highlighted');
+            }, 2500);
+        }
     },
 
     dispatchTrain: function(trainId, nextNode) {
@@ -1434,13 +1570,27 @@ const MapSystem = {
             }
 
             t.domElement.classList.add('moving');
-            let actualSpeed = t.cat.speed * this.currentWeather.speed;
-            t.currentSpeedKmh = Math.round(actualSpeed * 1200 * this.currentWeather.speed); 
+            
+            // Calculam viteza in functie de capabilitatea trenului, limita tronsonului si conditiile meteo
+            let trackSpeed = 80; // Viteza fallback
+            if (t.targetNode) {
+                let edge = EDGES.find(e => (e.from === t.currentNode && e.to === t.targetNode) || (e.to === t.currentNode && e.from === t.targetNode));
+                if (edge) trackSpeed = edge.maxSpeed;
+            }
+            let maxAllowedSpeed = Math.min(t.cat.maxSpeed, trackSpeed);
+            let currentKmh = Math.round(maxAllowedSpeed * this.currentWeather.speed);
+            
+            // Convertim viteza reala (km/h) intr-o viteza virtuala de progres pentru animatie
+            // 0.00075 asigura o proportionalitate realista si o viteza vizuala echilibrata
+            let actualSpeed = currentKmh * 0.00075;
+            t.currentSpeedKmh = currentKmh; 
 
-            // DECLANȘARE AVARII: Verificăm flagul this.minigamesEnabled
-            if (this.minigamesEnabled && t.state === 'MOVING_TO_STATION' && Math.random() < 0.000008 * this.simSpeedMultiplier) { 
-                this.triggerBreakdown(t);
-                needsTimetableUpdate = true;
+            // Defecțiuni ocazionale
+            if (t.state === 'MOVING_TO_STATION' && Math.random() < 0.00002 * this.simSpeedMultiplier) { 
+                if(this.minigamesEnabled) {
+                    this.triggerBreakdown(t);
+                    needsTimetableUpdate = true;
+                }
             }
 
             if (t.state === 'BROKEN') {
@@ -1535,6 +1685,9 @@ const MapSystem = {
                         t.state = 'DONE';
                         t.domElement.remove();
                         needsTimetableUpdate = true;
+                        
+                        // Generăm un tren nou la scurt timp după ce acesta a terminat cursa
+                        setTimeout(() => this.spawnTrain(), 2000 + Math.random() * 4000);
                     } else {
                         let isSmallStation = !NODES[t.currentNode].hub;
                         let nextNodeInPath = t.path ? t.path[t.pathIndex + 1] : null;
@@ -1594,21 +1747,12 @@ const MapSystem = {
 
                 let edge = EDGES.find(e => (e.from === t.currentNode && e.to === t.targetNode) || (e.to === t.currentNode && e.from === t.targetNode));
                 if(edge && edge.double) {
-                    // Determine which direction the train is going to apply the correct offset
                     let dx = n2.x - n1.x; let dy = n2.y - n1.y;
                     let dist = Math.sqrt(dx*dx + dy*dy);
-                    let nx = -dy / dist; let ny = dx / dist;
-                    let offsetAmt = 16.0;
-                    
-                    // If going from -> to in the edge definition, offset is (nx, ny) * amt
-                    // If going to -> from in the edge definition, offset is (-nx, -ny) * amt
-                    if(edge.from === t.currentNode) {
-                         px += nx * offsetAmt;
-                         py += ny * offsetAmt;
-                    } else {
-                         px -= nx * offsetAmt;
-                         py -= ny * offsetAmt;
-                    }
+                    let ox = (-dy / dist) * 16.0; 
+                    let oy = (dx / dist) * 16.0;
+                    px += ox; 
+                    py += oy;
                 }
                 
                 let angle = Math.atan2(n2.y - n1.y, n2.x - n1.x) * 180 / Math.PI;
