@@ -77,7 +77,6 @@
         }
         .map-zoom-controls button:active { background: #0f0; color: #000; transform: translateY(2px); }
 
-        /* Harta DOM Elements */
         .map-station {
             position: absolute; width: 18px; height: 18px;
             background: #fff; border: 4px solid #0055ff; border-radius: 50%;
@@ -106,7 +105,6 @@
             transition: opacity 0.3s, width 0.2s, height 0.2s, transform 0.2s;
         }
 
-        /* Notificare MARE si pulsanta pentru statia unde s-a defectat un tren */
         .station-badge.broken-alert {
             width: 58px; height: 58px; font-size: 32px;
             background: #ff2200; border: 4px solid #ffeb3b;
@@ -143,7 +141,6 @@
         .train-dot.r { background: #ff5500; width: 22px; height: 14px; }
         .train-dot.marfa { background: #00aa00; width: 45px; height: 14px; }
         
-        /* NIGHT MODE HEADLIGHTS (Faruri) */
         #map-wrapper.night-mode .train-dot::before {
             content: ''; position: absolute; top: 50%; right: -60px; width: 60px; height: 30px;
             background: linear-gradient(90deg, rgba(255,255,200,0.8), transparent);
@@ -160,7 +157,7 @@
         .train-label {
             background: rgba(0,0,0,0.85); color: #fff; font-size: 11px; padding: 2px 6px;
             font-weight: bold; white-space: nowrap; margin-bottom: 2px; font-family: monospace; border-radius: 3px; border: 1px solid #444;
-            transform: rotate(0deg) !important; /* Mentine textul drept mereu */
+            transform: rotate(0deg) !important;
             position: absolute; top: -25px;
         }
         .train-speed-tag {
@@ -173,7 +170,6 @@
         @keyframes crashBlink { 50% { transform: scale(1.6); } }
         @keyframes brokenBlink { 50% { background: #444; border-color:#ffeb3b; } }
 
-        /* Floating Spawn Label */
         .floating-label {
             position: absolute; font-family: 'Courier New', monospace; font-weight: bold; font-size: 16px;
             color: #fff; background: rgba(0, 200, 0, 0.9); border: 2px solid #0f0;
@@ -182,7 +178,6 @@
         }
         @keyframes floatUp { 0% { transform: translate(-50%, 0); opacity: 1; } 100% { transform: translate(-50%, -80px); opacity: 0; } }
 
-        /* --- STATIE RADIO (MECANICI) --- */
         #radio-panel {
             position: absolute; top: 15px; left: 15px; width: 360px;
             background: rgba(10, 30, 10, 0.85); border: 2px solid #0f0; border-radius: 8px;
@@ -194,7 +189,6 @@
         #radio-log { padding: 10px; height: 160px; overflow-y: hidden; display: flex; flex-direction: column; justify-content: flex-end; gap: 6px; }
         .radio-msg { animation: fadeIn 0.3s ease-in; text-shadow: 0 0 3px #0f0; line-height: 1.3;}
 
-        /* --- TABELA TRENURI / INTARZIERI --- */
         #timetable-panel {
             position: absolute; bottom: 15px; left: 15px; width: 360px;
             background: rgba(10, 10, 30, 0.9); border: 2px solid #0ff; border-radius: 8px;
@@ -208,7 +202,6 @@
         .tt-delay { color: #f00; font-weight: bold; }
         .tt-ontime { color: #0f0; }
 
-        /* --- PANOU DISPECER / INSPECTOR --- */
         #map-control-panel {
             position: absolute; top: 15px; right: 15px; width: 340px;
             background: #1a1a2e; border: 2px solid #0f0; padding: 15px; z-index: 45;
@@ -241,7 +234,6 @@
         .route-btn:active { transform: translateY(2px); box-shadow: 0 1px 2px rgba(0,0,0,0.5); }
         .route-btn.gps-route { background: #ffeb3b; border-color: #000; }
 
-        /* Toasts (Notificari elegante jos dreapta) */
         #toast-container {
             position: absolute; bottom: 15px; right: 15px;
             display: flex; flex-direction: column; gap: 6px; z-index: 10000; pointer-events: none;
@@ -258,7 +250,6 @@
         .toast.warn { border-left: 4px solid #ffeb3b; }
         @keyframes slideInRight { from { transform: translateX(30px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
 
-        /* --- BREAKDOWN MINIGAME MODAL --- */
         #minigame-overlay {
             position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
             background: rgba(0,0,0,0.85); z-index: 200000;
@@ -309,7 +300,6 @@
         #pause-banner.show { display: block; }
         @keyframes pauseBannerBlink { 50% { opacity: 0.6; } }
 
-        /* RESPONSIVE DESIGN (MOBIL) */
         @media (max-width: 800px) {
             .menu-title { font-size: 36px; }
             .menu-subtitle { font-size: 15px; }
@@ -372,7 +362,12 @@
                 </select>
             </div>
             <div>Meteo: <strong id="sys-weather" style="color: #ffeb3b;">☀️ Senin</strong></div>
-            <div><strong id="sys-restr" style="color: #0f0;">Trafic Deschis (100%)</strong></div>
+            
+            <div style="display: flex; align-items: center; gap: 8px;">
+                <span>Avarii:</span>
+                <button class="control-toggle-btn auto" id="minigame-btn" onclick="MapSystem.toggleMinigames()">ON</button>
+            </div>
+            
             <div style="display: flex; align-items: center; gap: 8px;">
                 <span>BLA:</span>
                 <button class="control-toggle-btn" id="bla-mode-btn" onclick="MapSystem.toggleAutoBLA()">MANUAL</button>
@@ -383,7 +378,6 @@
             </div>
             <div class="score-box" title="Trenuri ajunse la destinație">✔ <span id="sys-completed">0</span></div>
             <div class="score-box" style="color:#ff5555; border-color:#ff5555;" title="Defecțiuni totale">⚠ <span id="sys-breakdowns">0</span></div>
-            <div class="score-box" style="color:#ffeb3b; border-color:#ffeb3b;" title="Cel mai bun streak de reparații">🔥 <span id="sys-best-streak">0</span></div>
             <div class="score-box">Punctaj: <span id="sys-score">0</span></div>
         </div>
 
@@ -449,7 +443,6 @@
     </div>
 
 <script>
-// --- UI Functions ---
 function startGame() {
     document.getElementById('main-menu').style.display = 'none';
     MapSystem.init();
@@ -460,9 +453,6 @@ function toggleDispatcherPanel() {
     content.classList.toggle('hidden-content');
 }
 
-/* ==========================================
- * AUDIO SYNTHESIZER (Web Audio API)
- * ========================================== */
 const AudioSys = {
     ctx: null,
     muted: false,
@@ -495,9 +485,6 @@ const AudioSys = {
 document.body.addEventListener('touchstart', () => AudioSys.init(), {once:true});
 document.body.addEventListener('mousedown', () => AudioSys.init(), {once:true});
 
-/* ==========================================
- * SCADA NETWORK CORE
- * ========================================== */
 const NODES = {
     'BAC': { name: 'Bacău (Nod)', x: 6900, y: 7600, hub: true },
     'ROM': { name: 'Roman', x: 6700, y: 6900, hub: true },
@@ -585,7 +572,6 @@ const EDGES = [
     { id: 'L10', from: 'PNT', to: 'BCZ', double: false }
 ];
 
-// Actualizat cu ierarhia solicitata: IC, IR, R, si Marfa
 const TRAIN_CATEGORIES = [
     { type: 'ic', prefix: 'IC', speed: 0.12, class: 'ic', desc: 'InterCity (Cele mai rapide)' },
     { type: 'ir', prefix: 'IR', speed: 0.08, class: 'ir', desc: 'InterRegio (Rapide)' },
@@ -593,9 +579,6 @@ const TRAIN_CATEGORIES = [
     { type: 'marfa', prefix: 'M', speed: 0.035, class: 'marfa', desc: 'Marfar (Lent)' }
 ];
 
-/* ==========================================
- * SIMULATOR STATE & MAP SYSTEM
- * ========================================== */
 const MapSystem = {
     trains: [],
     signals: [],
@@ -603,7 +586,8 @@ const MapSystem = {
     selectedTrainId: null,
     score: 0,
     autoBLA: false, 
-    simSpeedMultiplier: 1, // Start pe 1x (Realist)
+    minigamesEnabled: true, // Variabila noua pt toggle
+    simSpeedMultiplier: 1, 
     
     lastTime: performance.now(),
     spawnTimer: 0,
@@ -622,7 +606,7 @@ const MapSystem = {
     
     radioQueue: [],
 
-    // --- MINIGAME STATE (joc de memorie: reproduce secventa de scule) ---
+    // Minigame config
     TOOL_POOL: ['🔧','⚙️','🔩','⚡','🪛','🔌','🛠️','🔦'],
     minigame: {
         active: false,
@@ -644,7 +628,7 @@ const MapSystem = {
     lastLoopTimeBeforePause: null,
 
     init: function() {
-        this.simTime.setHours(19, 58, 0); // Aproape de noapte pt a vedea efectul de faruri
+        this.simTime.setHours(19, 58, 0); 
         this.updateTransform();
         this.drawMap();
         this.setupTouchAndMouse();
@@ -662,7 +646,6 @@ const MapSystem = {
         this.showToast(`Viteză simulare setată la ${val}x.`, 'info');
     },
 
-    // --- BFS PATHFINDING ---
     getPath: function(start, end) {
         let queue = [[start]];
         let visited = new Set([start]);
@@ -713,6 +696,20 @@ const MapSystem = {
             btn.innerText = "MANUAL";
             btn.classList.remove('auto');
             this.showToast("Modul MANUAL activat. Dispecerul controlează semafoarele!", "info");
+        }
+    },
+
+    toggleMinigames: function() {
+        this.minigamesEnabled = !this.minigamesEnabled;
+        let btn = document.getElementById('minigame-btn');
+        if(this.minigamesEnabled) {
+            btn.innerText = "ON";
+            btn.classList.add('auto');
+            this.showToast("Evenimentele de avarie (Minigame) sunt ACTIVATE.", "warn");
+        } else {
+            btn.innerText = "OFF";
+            btn.classList.remove('auto');
+            this.showToast("Mod Sandbox. Avariile sunt DEZACTIVATE.", "success");
         }
     },
 
@@ -929,13 +926,13 @@ const MapSystem = {
     updateHighlights: function() {
         document.querySelectorAll('.map-train.highlighted').forEach(el => el.classList.remove('highlighted'));
         document.querySelectorAll('.map-station.target-highlight').forEach(el => el.classList.remove('target-highlight'));
-        document.getElementById('path-layer').innerHTML = ''; // Clear path
+        document.getElementById('path-layer').innerHTML = '';
         
         if(this.selectedTrainId) {
             let t = this.trains.find(tr => tr.id === this.selectedTrainId);
             if(t && t.domElement) {
                 t.domElement.classList.add('highlighted');
-                this.drawDynamicPath(t); // Draw the planned path
+                this.drawDynamicPath(t); 
                 
                 let target = t.destFinal;
                 if(target) {
@@ -1151,9 +1148,6 @@ const MapSystem = {
         }
     },
 
-    /* ==========================================
-     * BREAKDOWN NOTIFICATION + MINIGAME
-     * ========================================== */
     triggerBreakdown: function(train) {
         this.breakdownsCount = (this.breakdownsCount || 0) + 1;
         let bdEl = document.getElementById('sys-breakdowns');
@@ -1329,7 +1323,7 @@ const MapSystem = {
 
         if(t && t.state === 'BROKEN') {
             if(success) {
-                t.breakdownTimer = 0; // reparat instant
+                t.breakdownTimer = 0; 
                 this.minigame.fixedCount++;
                 this.minigame.streak++;
                 if(this.minigame.streak > this.minigame.bestStreak) this.minigame.bestStreak = this.minigame.streak;
@@ -1420,8 +1414,8 @@ const MapSystem = {
             let actualSpeed = t.cat.speed * this.currentWeather.speed;
             t.currentSpeedKmh = Math.round(actualSpeed * 1200 * this.currentWeather.speed); 
 
-            // Defecțiuni ocazionale și mult mai random (foarte rare comparativ cu înainte)
-            if (t.state === 'MOVING_TO_STATION' && Math.random() < 0.000008 * this.simSpeedMultiplier) { 
+            // DECLANȘARE AVARII: Verificăm flagul this.minigamesEnabled
+            if (this.minigamesEnabled && t.state === 'MOVING_TO_STATION' && Math.random() < 0.000008 * this.simSpeedMultiplier) { 
                 this.triggerBreakdown(t);
                 needsTimetableUpdate = true;
             }
@@ -1522,7 +1516,6 @@ const MapSystem = {
                         let isSmallStation = !NODES[t.currentNode].hub;
                         let nextNodeInPath = t.path ? t.path[t.pathIndex + 1] : null;
 
-                        // IC-urile și IR-urile trec în viteză prin stațiile mici (fără oprire)
                         if ((t.cat.type === 'ir' || t.cat.type === 'ic') && isSmallStation && nextNodeInPath) {
                             t.targetNode = nextNodeInPath;
                             t.state = 'MOVING_TO_SIGNAL';
